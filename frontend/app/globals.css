@@ -1,26 +1,220 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   PAWZO design tokens — mirrors DESIGN_SYSTEM.md / TYPOGRAPHY.md.
+   Only palette colors, documented radii, shadows, and motion live here.
+   ========================================================================= */
+@theme inline {
+  /* Fonts (wired from next/font in layout.tsx) */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-display: var(--font-poppins), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+
+  /* Primary palette */
+  --color-soft-sky: #bcf4f5;
+  --color-minty: #b4ebca;
+  --color-sunshine: #d9f2b4;
+  --color-grass: #d3fac7;
+  --color-blush: #ffb7c3;
+
+  /* Accent palette */
+  --color-fire-red: #d62839;
+  --color-rose: #ba324f;
+  --color-ocean: #175676;
+  --color-sky: #4ba3c3;
+  --color-cloud: #cce6f4;
+
+  /* Extended palette */
+  --color-deep-blue: #3a6ea5;
+  --color-coral: #f56476;
+  --color-magenta: #e43f6f;
+  --color-sage: #92aa83;
+  --color-lemon: #e7f59e;
+  --color-purple-haze: #809bce;
+
+  /* Radii */
+  --radius-button: 24px;
+  --radius-card: 20px;
+  --radius-input: 14px;
+  --radius-modal: 28px;
+  --radius-badge: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.15);
+
+  /* Motion */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --foreground: #175676; /* Ocean Blue — primary text */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* -------------------------------------------------------------------------
+   Type scale (TYPOGRAPHY.md). Sizes use clamp() so the hero scales down
+   gracefully to 320px without breaking the documented desktop sizes.
+   ------------------------------------------------------------------------- */
+.t-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(32px, 6vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(26px, 4.5vw, 32px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(22px, 3.5vw, 24px);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.t-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.25;
+}
+.t-h4 {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.25;
+}
+.t-body-l {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.t-body {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.t-label-s {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.05em;
+}
+
+/* -------------------------------------------------------------------------
+   Buttons (DESIGN_SYSTEM.md §7) — documented variants only.
+   ------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 12px 32px;
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.025em;
+  transition: all 300ms var(--ease-default);
+  cursor: pointer;
+}
+.btn-lg {
+  height: 56px;
+  padding: 16px 40px;
+  font-size: 18px;
+}
+.btn-primary {
+  background: var(--color-rose);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(186, 50, 79, 0.2);
+}
+.btn-primary:hover {
+  background: #a01e3e; /* darken 15% */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(186, 50, 79, 0.3);
+}
+.btn-primary:active {
+  background: #8b1b33;
+  transform: translateY(0);
+}
+.btn-secondary {
+  background: #ffffff;
+  color: var(--color-deep-blue);
+  border: 2px solid var(--color-deep-blue);
+}
+.btn-secondary:hover {
+  background: #f0f4f8;
+  border-color: #1a4e80;
+  transform: translateY(-2px);
+}
+
+/* -------------------------------------------------------------------------
+   Card hover (DESIGN_SYSTEM.md §6.1)
+   ------------------------------------------------------------------------- */
+.card-hover {
+  transition: all 300ms var(--ease-default);
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* -------------------------------------------------------------------------
+   Entrance + idle motion (≤ 800ms; honors reduced-motion)
+   ------------------------------------------------------------------------- */
+@keyframes pawzo-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pawzo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.anim-fade-up {
+  opacity: 0;
+  animation: pawzo-fade-up 600ms var(--ease-default) forwards;
+}
+.anim-float {
+  animation: pawzo-float 5s var(--ease-default) infinite;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-rose);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .anim-fade-up {
+    opacity: 1;
+  }
 }
