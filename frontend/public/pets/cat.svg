@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <radialGradient id="catbg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#BCF4F5"/>
+      <stop offset="100%" stop-color="#88D8E8"/>
+    </radialGradient>
+    <radialGradient id="catfur" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#F0A050"/>
+      <stop offset="100%" stop-color="#D07820"/>
+    </radialGradient>
+  </defs>
+  <rect width="300" height="300" fill="url(#catbg)" rx="22"/>
+  <!-- Ears -->
+  <polygon points="88,110 68,52 120,90" fill="#D07820"/>
+  <polygon points="212,110 232,52 180,90" fill="#D07820"/>
+  <polygon points="92,104 78,68 114,90" fill="#F08090"/>
+  <polygon points="208,104 222,68 186,90" fill="#F08090"/>
+  <!-- Head -->
+  <ellipse cx="150" cy="150" rx="88" ry="82" fill="url(#catfur)"/>
+  <!-- Forehead stripe markings -->
+  <path d="M140 88 Q150 80 160 88" fill="none" stroke="#B05810" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M134 98 Q150 88 166 98" fill="none" stroke="#B05810" stroke-width="2" stroke-linecap="round"/>
+  <!-- Eyes -->
+  <ellipse cx="118" cy="140" rx="18" ry="14" fill="#1A2A0A"/>
+  <ellipse cx="182" cy="140" rx="18" ry="14" fill="#1A2A0A"/>
+  <!-- Iris -->
+  <ellipse cx="118" cy="140" rx="10" ry="13" fill="#4CAF50"/>
+  <ellipse cx="182" cy="140" rx="10" ry="13" fill="#4CAF50"/>
+  <!-- Pupil -->
+  <ellipse cx="118" cy="140" rx="4" ry="12" fill="#0A0A0A"/>
+  <ellipse cx="182" cy="140" rx="4" ry="12" fill="#0A0A0A"/>
+  <!-- Eye shine -->
+  <circle cx="122" cy="134" r="4" fill="white" opacity="0.9"/>
+  <circle cx="186" cy="134" r="4" fill="white" opacity="0.9"/>
+  <!-- Nose -->
+  <polygon points="150,162 143,168 157,168" fill="#E87090"/>
+  <!-- Mouth -->
+  <path d="M143 168 Q150 175 157 168" fill="none" stroke="#C05060" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M136 172 Q143 180 150 175" fill="none" stroke="#C05060" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M164 172 Q157 180 150 175" fill="none" stroke="#C05060" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Whiskers left -->
+  <line x1="60" y1="162" x2="130" y2="168" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <line x1="58" y1="170" x2="130" y2="172" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <line x1="62" y1="178" x2="130" y2="176" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <!-- Whiskers right -->
+  <line x1="240" y1="162" x2="170" y2="168" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <line x1="242" y1="170" x2="170" y2="172" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <line x1="238" y1="178" x2="170" y2="176" stroke="#8B4A10" stroke-width="1.5" opacity="0.7"/>
+  <!-- Cheeks blush -->
+  <ellipse cx="95" cy="158" rx="16" ry="10" fill="#E86060" opacity="0.2"/>
+  <ellipse cx="205" cy="158" rx="16" ry="10" fill="#E86060" opacity="0.2"/>
+  <!-- Tabby stripes on cheeks -->
+  <path d="M90 145 Q95 138 100 145" fill="none" stroke="#B05810" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
+  <path d="M200 145 Q205 138 210 145" fill="none" stroke="#B05810" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
+</svg>

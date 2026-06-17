@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <radialGradient id="rbbg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE8F4"/>
+      <stop offset="100%" stop-color="#F0B8D8"/>
+    </radialGradient>
+    <radialGradient id="rbfur" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#F8F4F0"/>
+      <stop offset="100%" stop-color="#E0D8D0"/>
+    </radialGradient>
+  </defs>
+  <rect width="300" height="300" fill="url(#rbbg)" rx="22"/>
+  <!-- Left ear -->
+  <ellipse cx="108" cy="95" rx="24" ry="68" fill="url(#rbfur)" transform="rotate(-8 108 95)"/>
+  <ellipse cx="108" cy="95" rx="12" ry="54" fill="#F0A0B8" transform="rotate(-8 108 95)"/>
+  <!-- Right ear -->
+  <ellipse cx="192" cy="95" rx="24" ry="68" fill="url(#rbfur)" transform="rotate(8 192 95)"/>
+  <ellipse cx="192" cy="95" rx="12" ry="54" fill="#F0A0B8" transform="rotate(8 192 95)"/>
+  <!-- Body -->
+  <ellipse cx="150" cy="220" rx="72" ry="60" fill="url(#rbfur)"/>
+  <!-- Belly -->
+  <ellipse cx="150" cy="230" rx="44" ry="38" fill="white" opacity="0.7"/>
+  <!-- Head -->
+  <ellipse cx="150" cy="155" rx="76" ry="72" fill="url(#rbfur)"/>
+  <!-- Eyes -->
+  <ellipse cx="118" cy="142" rx="13" ry="14" fill="#C03080"/>
+  <ellipse cx="182" cy="142" rx="13" ry="14" fill="#C03080"/>
+  <ellipse cx="118" cy="142" rx="7" ry="8" fill="#1A0A0A"/>
+  <ellipse cx="182" cy="142" rx="7" ry="8" fill="#1A0A0A"/>
+  <circle cx="121" cy="138" r="3.5" fill="white" opacity="0.9"/>
+  <circle cx="185" cy="138" r="3.5" fill="white" opacity="0.9"/>
+  <!-- Nose -->
+  <ellipse cx="150" cy="168" rx="9" ry="7" fill="#E87090"/>
+  <!-- Mouth -->
+  <path d="M142 174 Q150 180 158 174" fill="none" stroke="#D06080" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M134 177 Q142 185 150 180" fill="none" stroke="#D06080" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M166 177 Q158 185 150 180" fill="none" stroke="#D06080" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Whiskers left -->
+  <line x1="58" y1="162" x2="132" y2="168" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <line x1="56" y1="169" x2="132" y2="172" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <line x1="60" y1="176" x2="132" y2="175" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <!-- Whiskers right -->
+  <line x1="242" y1="162" x2="168" y2="168" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <line x1="244" y1="169" x2="168" y2="172" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <line x1="240" y1="176" x2="168" y2="175" stroke="#A09898" stroke-width="1.2" opacity="0.6"/>
+  <!-- Cheeks blush -->
+  <ellipse cx="98" cy="158" rx="16" ry="10" fill="#E86090" opacity="0.22"/>
+  <ellipse cx="202" cy="158" rx="16" ry="10" fill="#E86090" opacity="0.22"/>
+  <!-- Paws -->
+  <ellipse cx="114" cy="272" rx="24" ry="14" fill="url(#rbfur)"/>
+  <ellipse cx="186" cy="272" rx="24" ry="14" fill="url(#rbfur)"/>
+  <!-- Paw toes -->
+  <ellipse cx="104" cy="276" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <ellipse cx="114" cy="278" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <ellipse cx="124" cy="276" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <ellipse cx="176" cy="276" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <ellipse cx="186" cy="278" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <ellipse cx="196" cy="276" rx="6" ry="4" fill="#F0D0DC" opacity="0.7"/>
+  <!-- Fluffy tail -->
+  <circle cx="150" cy="278" r="16" fill="white" opacity="0.85"/>
+</svg>

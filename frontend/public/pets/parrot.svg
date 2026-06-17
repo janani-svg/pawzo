@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <radialGradient id="pbg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#B4EBCA"/>
+      <stop offset="100%" stop-color="#7ACCA0"/>
+    </radialGradient>
+  </defs>
+  <rect width="300" height="300" fill="url(#pbg)" rx="22"/>
+  <!-- Body -->
+  <ellipse cx="150" cy="195" rx="60" ry="72" fill="#2E8B57"/>
+  <!-- Wings -->
+  <ellipse cx="95" cy="185" rx="32" ry="55" fill="#1E6B3A" transform="rotate(-18 95 185)"/>
+  <ellipse cx="205" cy="185" rx="32" ry="55" fill="#1E6B3A" transform="rotate(18 205 185)"/>
+  <!-- Wing feather detail left -->
+  <path d="M78 150 Q88 175 80 200" fill="none" stroke="#3AAA60" stroke-width="2" stroke-linecap="round"/>
+  <path d="M88 148 Q98 172 90 200" fill="none" stroke="#3AAA60" stroke-width="2" stroke-linecap="round"/>
+  <!-- Wing feather detail right -->
+  <path d="M222 150 Q212 175 220 200" fill="none" stroke="#3AAA60" stroke-width="2" stroke-linecap="round"/>
+  <path d="M212 148 Q202 172 210 200" fill="none" stroke="#3AAA60" stroke-width="2" stroke-linecap="round"/>
+  <!-- Tail feathers -->
+  <ellipse cx="138" cy="268" rx="10" ry="30" fill="#1A7B3A" transform="rotate(-10 138 268)"/>
+  <ellipse cx="150" cy="272" rx="10" ry="32" fill="#228B44"/>
+  <ellipse cx="162" cy="268" rx="10" ry="30" fill="#1A7B3A" transform="rotate(10 162 268)"/>
+  <!-- Head -->
+  <circle cx="150" cy="118" r="62" fill="#2E8B57"/>
+  <!-- Head coloring - blue forehead patch -->
+  <ellipse cx="150" cy="98" rx="38" ry="28" fill="#4BA3C3"/>
+  <!-- Red cheek patches -->
+  <ellipse cx="116" cy="125" rx="18" ry="14" fill="#D62839"/>
+  <ellipse cx="184" cy="125" rx="18" ry="14" fill="#D62839"/>
+  <!-- Eyes -->
+  <circle cx="122" cy="108" r="14" fill="#0A0A0A"/>
+  <circle cx="178" cy="108" r="14" fill="#0A0A0A"/>
+  <circle cx="120" cy="108" r="8" fill="#F0C040"/>
+  <circle cx="176" cy="108" r="8" fill="#F0C040"/>
+  <circle cx="121" cy="108" r="5" fill="#0A0A0A"/>
+  <circle cx="177" cy="108" r="5" fill="#0A0A0A"/>
+  <circle cx="123" cy="105" r="2.5" fill="white" opacity="0.9"/>
+  <circle cx="179" cy="105" r="2.5" fill="white" opacity="0.9"/>
+  <!-- Beak -->
+  <ellipse cx="150" cy="130" rx="18" ry="10" fill="#D4AF37"/>
+  <path d="M132 130 Q150 145 168 130" fill="#B8960A"/>
+  <path d="M132 130 Q150 125 168 130" fill="#E0C030"/>
+  <!-- Beak highlight -->
+  <ellipse cx="150" cy="127" rx="10" ry="4" fill="#F0D850" opacity="0.6"/>
+  <!-- Yellow chest -->
+  <ellipse cx="150" cy="200" rx="35" ry="30" fill="#D9F200" opacity="0.8"/>
+  <!-- Feet perching -->
+  <path d="M125 262 Q120 272 110 278 M120 262 Q115 272 108 280 M130 265 Q128 278 124 284" fill="none" stroke="#6B4A0A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M175 262 Q180 272 190 278 M180 262 Q185 272 192 280 M170 265 Q172 278 176 284" fill="none" stroke="#6B4A0A" stroke-width="3" stroke-linecap="round"/>
+</svg>

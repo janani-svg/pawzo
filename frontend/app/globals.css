@@ -53,6 +53,38 @@
 :root {
   --background: #ffffff;
   --foreground: #175676; /* Ocean Blue — primary text */
+
+  /* -----------------------------------------------------------------------
+     PAWZO app theme tokens (light). Mirrored by [data-theme="dark"] below.
+     Solid fills only — no gradients anywhere in the app.
+     ----------------------------------------------------------------------- */
+  --p-bg: #FFFFFF;            /* white canvas (per DESIGN_SYSTEM §3.2) */
+  --p-surface: #FFFFFF;       /* cards */
+  --p-surface-2: #FBF7FF;     /* inputs / subtle fills */
+  --p-ink: #1F2230;           /* primary text */
+  --p-gray: #6B7280;          /* secondary text */
+  --p-gray-light: #9CA3AF;    /* tertiary text */
+  --p-border: #ECE2F6;        /* hairlines / input borders */
+  --p-primary: #EC4899;       /* brand pink (solid CTA) */
+  --p-primary-deep: #D94F8A;  /* wordmark / active */
+  --p-primary-soft: #FFF0F8;  /* selected tint */
+  --p-nav: rgba(255,255,255,0.96);
+  --p-topbar: rgba(255,255,255,0.9);
+}
+
+[data-theme="dark"] {
+  --p-bg: #14121C;
+  --p-surface: #201C2B;
+  --p-surface-2: #2A2536;
+  --p-ink: #F2EFF7;
+  --p-gray: #B3ABC2;
+  --p-gray-light: #8C84A0;
+  --p-border: #342E44;
+  --p-primary: #F472B6;
+  --p-primary-deep: #F472B6;
+  --p-primary-soft: #3A2438;
+  --p-nav: rgba(32,28,43,0.96);
+  --p-topbar: rgba(20,18,28,0.9);
 }
 
 body {
@@ -61,9 +93,10 @@ body {
   font-family: var(--font-sans);
 }
 
+* { box-sizing: border-box; }
+
 /* -------------------------------------------------------------------------
-   Type scale (TYPOGRAPHY.md). Sizes use clamp() so the hero scales down
-   gracefully to 320px without breaking the documented desktop sizes.
+   Type scale (TYPOGRAPHY.md).
    ------------------------------------------------------------------------- */
 .t-display {
   font-family: var(--font-display);
@@ -113,7 +146,7 @@ body {
 }
 
 /* -------------------------------------------------------------------------
-   Buttons (DESIGN_SYSTEM.md §7) — documented variants only.
+   Buttons (DESIGN_SYSTEM.md §7)
    ------------------------------------------------------------------------- */
 .btn {
   display: inline-flex;
@@ -140,7 +173,7 @@ body {
   box-shadow: 0 2px 8px rgba(186, 50, 79, 0.2);
 }
 .btn-primary:hover {
-  background: #a01e3e; /* darken 15% */
+  background: #a01e3e;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(186, 50, 79, 0.3);
 }
@@ -160,7 +193,7 @@ body {
 }
 
 /* -------------------------------------------------------------------------
-   Card hover (DESIGN_SYSTEM.md §6.1)
+   Card hover
    ------------------------------------------------------------------------- */
 .card-hover {
   transition: all 300ms var(--ease-default);
@@ -171,26 +204,15 @@ body {
 }
 
 /* -------------------------------------------------------------------------
-   Entrance + idle motion (≤ 800ms; honors reduced-motion)
+   Animations
    ------------------------------------------------------------------------- */
 @keyframes pawzo-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes pawzo-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
 }
 .anim-fade-up {
   opacity: 0;
@@ -206,15 +228,105 @@ body {
   border-radius: 4px;
 }
 
+/* -------------------------------------------------------------------------
+   PAWZO app animations (landing, login, shared interactions)
+   ------------------------------------------------------------------------- */
+/* iPhone-style letter-by-letter reveal for the "Pawzo" wordmark */
+@keyframes pawzo-letter-in {
+  0%   { opacity: 0; transform: translateY(26px) scale(0.82); filter: blur(6px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pawzo-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: pawzo-letter-in 620ms var(--ease-bouncy) forwards;
+}
+
+/* big floating paw blobs on the landing splash */
+@keyframes pawzo-drift {
+  0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translate(0, -16px) rotate(calc(var(--rot, 0deg) + 4deg)); }
+}
+.pawzo-drift { animation: pawzo-drift 7s ease-in-out infinite; }
+
+/* morphing blob for the login pet tiles */
+@keyframes pawzo-morph {
+  0%, 100% { border-radius: 46% 54% 58% 42% / 52% 46% 54% 48%; }
+  33%      { border-radius: 60% 40% 42% 58% / 44% 62% 38% 56%; }
+  66%      { border-radius: 40% 60% 56% 44% / 60% 40% 60% 40%; }
+}
+.pawzo-morph { animation: pawzo-morph 8s ease-in-out infinite; }
+
+/* slow zoom-in / zoom-out for login pet tiles */
+@keyframes pawzo-zoom {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.12); }
+}
+.pawzo-zoom { animation: pawzo-zoom 4s ease-in-out infinite; }
+
+@keyframes pawzo-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+.pawzo-bob { animation: pawzo-bob 4s ease-in-out infinite; }
+
+/* gentle scale press feedback on tappable controls */
+.pawzo-press { transition: transform 150ms var(--ease-default), box-shadow 200ms var(--ease-default); }
+.pawzo-press:active { transform: scale(0.96); }
+
+/* staggered entrance for stacked content */
+@keyframes pawzo-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pawzo-rise { opacity: 0; animation: pawzo-rise 480ms var(--ease-default) forwards; }
+
+/* chat bubble pop-in */
+@keyframes pawzo-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pawzo-pop { animation: pawzo-pop 260ms var(--ease-bouncy) forwards; }
+
+/* typing dots */
+@keyframes pawzo-dot {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30%           { opacity: 1; transform: translateY(-3px); }
+}
+
+/* hide scrollbars on horizontal carousels while keeping scroll */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* iPhone-"Hello"-style handwritten wordmark: stroke draws, then fills */
+@keyframes pawzo-draw { to { stroke-dashoffset: 0; } }
+@keyframes pawzo-ink { to { fill-opacity: 1; } }
+.pawzo-write {
+  stroke: var(--p-primary);
+  stroke-width: 2;
+  fill: var(--p-primary);
+  fill-opacity: 0;
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: pawzo-draw 2400ms cubic-bezier(0.65,0,0.35,1) forwards,
+             pawzo-ink 700ms ease-out 2200ms forwards;
+}
+/* paw prints stepping in, as if a dog walked behind the logo */
+@keyframes pawzo-step { 0% { opacity: 0; transform: translateY(8px) scale(0.7); } 100% { opacity: var(--paw-op, 0.85); transform: translateY(0) scale(1); } }
+.pawzo-step { opacity: 0; animation: pawzo-step 420ms var(--ease-bouncy) forwards; }
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  .pawzo-write { stroke-dashoffset: 0; fill-opacity: 1; animation: none; }
+  .pawzo-step { opacity: var(--paw-op, 0.85); animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .anim-fade-up {
-    opacity: 1;
-  }
+  .anim-fade-up { opacity: 1; }
+  .pawzo-letter, .pawzo-rise { opacity: 1; }
 }
