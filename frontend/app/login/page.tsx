@@ -34,7 +34,6 @@ export default function LoginPage() {
   const [fMsg,     setFMsg]     = useState("");
   const [fErr,     setFErr]     = useState("");
 
-<<<<<<< HEAD
   const [loginLoading, setLoginLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -44,13 +43,6 @@ export default function LoginPage() {
     setLoginLoading(true);
     const r = await login(id.trim(), pw);
     setLoginLoading(false);
-=======
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (!id.trim() || !pw) { setError("Please enter your details to continue."); return; }
-    const r = login(id.trim(), pw);
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
     if (!r.ok) { setError(r.error ?? "Could not log in."); return; }
     router.push("/dashboard");
   }
@@ -63,12 +55,7 @@ export default function LoginPage() {
     if (fPw !== fConfirm) { setFErr("Passwords don't match yet."); return; }
     const r = resetPassword(fEmail.trim(), fPw);
     if (!r.ok) { setFErr(r.error ?? "Could not reset."); return; }
-<<<<<<< HEAD
     setFMsg("Password reset coming soon — contact support.");
-=======
-    setFMsg("Password updated! You can log in now. 🎉");
-    setTimeout(() => { setMode("login"); setId(fEmail.trim()); setPw(""); }, 1400);
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
   }
 
   return (
@@ -167,13 +154,8 @@ export default function LoginPage() {
 
                 {error && <ErrorBox>{error}</ErrorBox>}
 
-<<<<<<< HEAD
                 <PrimaryButton full type="submit" disabled={loginLoading} style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
                   {loginLoading ? "Logging in…" : "Login 🐾"}
-=======
-                <PrimaryButton full type="submit" style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
-                  Login 🐾
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
                 </PrimaryButton>
               </form>
 
