@@ -503,14 +503,11 @@ export function deriveAlerts(state: State): Alert[] {
 }
 
 export function daysUntil(iso: string): number {
-  const d = new Date(iso), now = new Date();
-  now.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0);
+  const d = new Date(iso); const now = new Date(); now.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0);
   return Math.round((d.getTime() - now.getTime()) / 86400000);
 }
-
 export function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
+  const d = new Date(iso); if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
