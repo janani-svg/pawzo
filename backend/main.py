@@ -1,6 +1,42 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 
-app = FastAPI()
+load_dotenv()
+
+from app.db.database import engine, Base
+from app.models import models  # ensure models are registered before create_all
+from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(title="Pawzo API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router,     prefix="/auth",  tags=["auth"])
+app.include_router(pets.router,     prefix="/pets",  tags=["pets"])
+app.include_router(meals.router,    prefix="/pets",  tags=["meals"])
+app.include_router(health.router,   prefix="/pets",  tags=["health"])
+app.include_router(growth.router,   prefix="/pets",  tags=["growth"])
+app.include_router(expenses.router, prefix="/pets",  tags=["expenses"])
+app.include_router(memories.router, prefix="/pets",  tags=["memories"])
+app.include_router(calendar.router, prefix="/pets",  tags=["calendar"])
+app.include_router(settings.router, prefix="/user",  tags=["settings"])
+
 
 @app.get("/")
 def home():
