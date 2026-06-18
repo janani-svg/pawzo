@@ -11,11 +11,11 @@ import { usePawzo } from "../lib/store";
 
 /* ---------------------------------------------------------------- pet mosaic */
 const PETS = [
-  { id: "dog",    src: "/pets/dog.svg",    bg: "#FFDDC8", area: "dog",    delay: "0s" },
-  { id: "cat",    src: "/pets/cat.svg",    bg: "#BCF4F5", area: "cat",    delay: "0.6s" },
-  { id: "parrot", src: "/pets/parrot.svg", bg: "#B4EBCA", area: "parrot", delay: "1.1s" },
-  { id: "rabbit", src: "/pets/rabbit.svg", bg: "#FFE8F4", area: "rabbit", delay: "0.4s" },
-  { id: "fish",   src: "/pets/fish.svg",   bg: "#0A3A58", area: "fish",   delay: "1.5s" },
+  { id: "dog",    src: "/pets/dog.jpg",bg: "#FFDDC8", area: "dog",    delay: "0s" },
+  { id: "cat",    src: "/pets/cat.jpg",    bg: "#BCF4F5", area: "cat",    delay: "0.6s" },
+  { id: "parrot", src: "/pets/par.jpg", bg: "#B4EBCA", area: "par", delay: "1.1s" },
+  { id: "rabbit", src: "/pets/bunny.jpg", bg: "#FFE8F4", area: "bunny", delay: "0.4s" },
+  { id: "fish",   src: "/pets/ch.jpg",   bg: "#0A3A58", area: "ch",   delay: "1.5s" },
 ];
 
 export default function LoginPage() {
@@ -34,11 +34,15 @@ export default function LoginPage() {
   const [fMsg,     setFMsg]     = useState("");
   const [fErr,     setFErr]     = useState("");
 
-  function submit(e: React.FormEvent) {
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!id.trim() || !pw) { setError("Please enter your details to continue."); return; }
-    const r = login(id.trim(), pw);
+    setLoginLoading(true);
+    const r = await login(id.trim(), pw);
+    setLoginLoading(false);
     if (!r.ok) { setError(r.error ?? "Could not log in."); return; }
     router.push("/dashboard");
   }
@@ -51,8 +55,7 @@ export default function LoginPage() {
     if (fPw !== fConfirm) { setFErr("Passwords don't match yet."); return; }
     const r = resetPassword(fEmail.trim(), fPw);
     if (!r.ok) { setFErr(r.error ?? "Could not reset."); return; }
-    setFMsg("Password updated! You can log in now. 🎉");
-    setTimeout(() => { setMode("login"); setId(fEmail.trim()); setPw(""); }, 1400);
+    setFMsg("Password reset coming soon — contact support.");
   }
 
   return (
@@ -62,7 +65,7 @@ export default function LoginPage() {
         {/* ─── pet mosaic ─────────────────────────────────── */}
         <div style={{
           display: "grid",
-          gridTemplateAreas: `"dog cat" "dog parrot" "rabbit fish"`,
+          gridTemplateAreas: `"dog cat" "dog par" "bunny ch"`,
           gridTemplateColumns: "1fr 1fr",
           gridTemplateRows: "repeat(3, 88px)",
           gap: 5,
@@ -151,8 +154,8 @@ export default function LoginPage() {
 
                 {error && <ErrorBox>{error}</ErrorBox>}
 
-                <PrimaryButton full type="submit" style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
-                  Login 🐾
+                <PrimaryButton full type="submit" disabled={loginLoading} style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
+                  {loginLoading ? "Logging in…" : "Login 🐾"}
                 </PrimaryButton>
               </form>
 
