@@ -34,6 +34,7 @@ export default function SignupPage() {
   };
   const canSubmit = agree && Object.values(errors).every((e) => !e);
 
+<<<<<<< HEAD
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -43,6 +44,13 @@ export default function SignupPage() {
     setLoading(true);
     const r = await register({ name: form.name.trim(), username: form.username.trim(), email: form.email.trim(), password: form.pw });
     setLoading(false);
+=======
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setTouched({ name: true, username: true, email: true, pw: true, confirm: true });
+    if (!canSubmit) return;
+    const r = register({ name: form.name.trim(), username: form.username.trim(), email: form.email.trim(), password: form.pw });
+>>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
     if (!r.ok) { setServerError(r.error ?? "Could not create account."); return; }
     router.push("/onboarding");
   }
@@ -87,7 +95,11 @@ export default function SignupPage() {
             <div style={{ background: T.dangerBg, color: T.danger, fontSize: 12.5, fontWeight: 600, borderRadius: 12, padding: "10px 12px", marginBottom: 14, border: "1px solid #F6C9CF" }}>{serverError}</div>
           )}
 
+<<<<<<< HEAD
           <PrimaryButton full type="submit" disabled={!canSubmit || loading} style={{ height: 52 }}>{loading ? "Creating account…" : "Create account"}</PrimaryButton>
+=======
+          <PrimaryButton full type="submit" disabled={!canSubmit} style={{ height: 52 }}>Create account</PrimaryButton>
+>>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
         </form>
 
         <p style={{ textAlign: "center", fontSize: 14, color: T.gray, marginTop: 20 }}>
