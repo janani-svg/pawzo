@@ -106,6 +106,7 @@ class MealOut(BaseModel):
 class MealLogToggle(BaseModel):
     meal_id: str
     date: str
+    fed_at: Optional[int] = None  # epoch ms — supplied by client when marking done
 
 
 class MealLogOut(BaseModel):
@@ -114,6 +115,7 @@ class MealLogOut(BaseModel):
     meal_id: str
     date: str
     done: bool
+    fed_at: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -347,7 +349,93 @@ class SettingsOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Alert Records ─────────────────────────────────────────────────────────────
+
+class AlertRecordIn(BaseModel):
+    alert_key:    str
+    pet_id:       Optional[str] = None
+    emoji:        str = ""
+    title:        str
+    body:         str = ""
+    when_display: str = ""
+    when_ms:      Optional[int] = None
+    group_name:   str = "Today"
+    color:        str = ""
+    sort_time:    Optional[int] = None
+    status:       str = "upcoming"
+    created_at:   int
+    expires_at:   int
+
+
+class AlertRecordOut(BaseModel):
+    alert_key:    str
+    user_id:      str
+    pet_id:       Optional[str] = None
+    emoji:        str
+    title:        str
+    body:         str
+    when_display: str
+    when_ms:      Optional[int] = None
+    group_name:   str
+    color:        str
+    sort_time:    Optional[int] = None
+    status:       str
+    created_at:   int
+    expires_at:   int
+
+    model_config = {"from_attributes": True}
+
+
 # ── Activity / Streak ─────────────────────────────────────────────────────────
 
 class ActivityOut(BaseModel):
     dates: list[str]
+    streak: int = 0
+    streak_broken: bool = False
+
+
+# ── Documents ─────────────────────────────────────────────────────────────────
+
+class DocumentCreate(BaseModel):
+    name: str
+    category: str = "Other"
+    file_data: str = ""
+    mime_type: str = ""
+    uploaded_at: str
+
+
+class DocumentOut(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    category: str
+    file_data: str
+    mime_type: str
+    uploaded_at: str
+
+    model_config = {"from_attributes": True}
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class ChatSend(BaseModel):
+    text: str
+    pet_id: Optional[str] = None
+    image_base64: Optional[str] = None  # base64-encoded image from frontend
+
+
+class ChatMessageOut(BaseModel):
+    id: str
+    user_id: str
+    pet_id: Optional[str]
+    role: str
+    text: str
+    image_data: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatResponse(BaseModel):
+    user_msg: ChatMessageOut
+    ai_msg: ChatMessageOut

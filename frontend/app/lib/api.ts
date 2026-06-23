@@ -59,8 +59,8 @@ export const mealsApi = {
 export const mealLogsApi = {
   list:   (petId: string, date?: string) =>
     get<ApiMealLog[]>(`/pets/${petId}/meal-logs${date ? `?date=${date}` : ""}`),
-  toggle: (petId: string, meal_id: string, date: string) =>
-    post<ApiMealLog>(`/pets/${petId}/meal-logs/toggle`, { meal_id, date }),
+  toggle: (petId: string, meal_id: string, date: string, fed_at?: number) =>
+    post<ApiMealLog>(`/pets/${petId}/meal-logs/toggle`, { meal_id, date, fed_at: fed_at ?? null }),
 };
 
 /* ── Health ─────────────────────────────────────────────────────────────── */
@@ -118,6 +118,13 @@ export const calendarApi = {
   delete: (petId: string, id: string) => del(`/pets/${petId}/events/${id}`),
 };
 
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+export const alertsApi = {
+  list: () => get<ApiAlertRecord[]>("/user/alerts"),
+  upsertBatch: (alerts: ApiAlertRecordIn[]) =>
+    post<{ upserted: number }>("/user/alerts/upsert-batch", alerts),
+};
+
 /* ── Settings / Vet / Activity ──────────────────────────────────────────── */
 export const userApi = {
   getSettings: ()                       => get<ApiSettings>("/user/settings"),
@@ -143,6 +150,7 @@ export interface ApiMeal {
 }
 export interface ApiMealLog {
   id: string; pet_id: string; meal_id: string; date: string; done: boolean;
+  fed_at?: number | null;
 }
 export interface ApiVaccination {
   id: string; pet_id: string; name: string; date: string; next_due: string; clinic: string;
@@ -171,4 +179,18 @@ export interface ApiVet {
 export interface ApiSettings {
   theme: string; push: boolean; email: boolean; sound: boolean;
   units: string; currency: string; language: string;
+}
+export interface ApiAlertRecord {
+  alert_key: string; user_id: string; pet_id?: string | null;
+  emoji: string; title: string; body: string; when_display: string;
+  when_ms?: number | null; group_name: string; color: string;
+  sort_time?: number | null; status: string;
+  created_at: number; expires_at: number;
+}
+export interface ApiAlertRecordIn {
+  alert_key: string; pet_id?: string | null;
+  emoji: string; title: string; body: string; when_display: string;
+  when_ms?: number | null; group_name: string; color: string;
+  sort_time?: number | null; status: string;
+  created_at: number; expires_at: number;
 }
