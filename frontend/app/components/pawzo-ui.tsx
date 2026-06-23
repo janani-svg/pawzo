@@ -86,11 +86,12 @@ export function AppFrame({
   return (
     <div style={{ minHeight: "100dvh", background: bg, display: "flex", justifyContent: "center" }}>
       <div
+        className="pawzo-paws"
         style={{
           width: "100%",
           maxWidth: T.maxW,
           minHeight: "100dvh",
-          background: bg,
+          backgroundColor: bg,
           position: "relative",
           paddingBottom: pad ? 96 : 0,
         }}
@@ -117,11 +118,7 @@ export function TopBar({
   return (
     <header
       style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 40,
-        background: "var(--p-topbar)",
-        backdropFilter: "blur(8px)",
+        background: "transparent",
         padding: "14px 16px",
         display: "flex",
         alignItems: "center",
@@ -374,10 +371,10 @@ export function SectionTitle({
 
 /* ----------------------------------------------------------------- bottom nav */
 const NAV = [
-  { href: "/dashboard", label: "Home", icon: IconHome },
-  { href: "/ai", label: "Ask AI", icon: IconSpark },
-  { href: "/notifications", label: "Alerts", icon: IconPawAlert },
-  { href: "/profile", label: "Profile", icon: IconUser },
+  { href: "/dashboard",     label: "Home",    icon: IconHome,     tint: "#FFE0EC", ink: "#C53D74" },
+  { href: "/ai",            label: "Ask AI",  icon: IconSpark,    tint: "#DCEBFF", ink: "#1C6EA4" },
+  { href: "/notifications", label: "Alerts",  icon: IconPawAlert, tint: "#FFEBC7", ink: "#9A6B12" },
+  { href: "/profile",       label: "Profile", icon: IconUser,     tint: "#DBF3E3", ink: "#1F7A47" },
 ] as const;
 
 export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
@@ -391,8 +388,7 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
         transform: "translateX(-50%)",
         width: "100%",
         maxWidth: T.maxW,
-        background: "var(--p-nav)",
-        backdropFilter: "blur(10px)",
+        background: "var(--p-bg)",
         borderTop: "1px solid var(--p-border)",
         display: "flex",
         justifyContent: "space-around",
@@ -421,18 +417,22 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
           >
             <div style={{ position: "relative" }}>
               <div
+                className="pawzo-press"
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: active ? T.gradient : "transparent",
+                  width: 46,
+                  height: 46,
+                  borderRadius: 15,
+                  background: item.tint,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  transition: "background 200ms",
+                  transition: "box-shadow 200ms, transform 150ms",
+                  boxShadow: active
+                    ? `0 0 0 2.5px ${item.ink}, 0 5px 13px ${item.ink}40`
+                    : "inset 0 0 0 1px rgba(0,0,0,0.04)",
                 }}
               >
-                <Icon color={active ? "#fff" : T.grayLight} />
+                <Icon color={item.ink} />
               </div>
               {item.href === "/notifications" && alertCount > 0 && (
                 <span
@@ -462,7 +462,7 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
               style={{
                 fontSize: 10.5,
                 fontWeight: active ? 800 : 600,
-                color: active ? T.pink : T.grayLight,
+                color: active ? item.ink : T.grayLight,
               }}
             >
               {item.label}

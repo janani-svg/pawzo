@@ -37,7 +37,7 @@ export default function Dashboard() {
   return (
     <AppFrame>
       {/* header — no calendar/memory buttons */}
-      <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--p-topbar)", backdropFilter: "blur(8px)", padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <header style={{ position: "relative", background: "transparent", padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Link href="/settings" aria-label="Settings" style={{ position: "absolute", left: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
         <PawzoLogo size={25} />
         <Link href="/profile" aria-label="Profile" style={{ position: "absolute", right: 16 }}>
@@ -49,7 +49,7 @@ export default function Dashboard() {
 
       <main style={{ padding: "10px 0 0" }}>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: T.ink, margin: "0 16px 12px" }}>
-          Hi, {user?.name?.split(" ")[0] ?? "there"} 👋
+          Hi, {user?.name?.split(" ")[0] ?? "there"}
         </h1>
 
         {/* MY PETS carousel */}

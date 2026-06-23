@@ -33,22 +33,19 @@ export default function NotificationsPage() {
   const { ready, authed } = useRequireAuth();
   const { state } = usePawzo();
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const prevCountRef = useRef(0);
+  const hasPlayedRef = useRef(false);
 
-  if (!ready || !authed) return null;
-
-  const alerts = deriveAlerts(state);
+  const alerts = ready && authed ? deriveAlerts(state) : [];
   const unreadCount = alerts.filter((a) => !readIds.has(a.id)).length;
 
-  // play sound when page first loads with unread alerts (only once)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // play a cute chime once — the first time the page is ready with unread alerts
   useEffect(() => {
-    if (unreadCount > 0 && prevCountRef.current === 0 && state.settings.sound) {
-      playCutePetSound();
-    }
-    prevCountRef.current = unreadCount;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!ready || !authed || hasPlayedRef.current) return;
+    hasPlayedRef.current = true;
+    if (unreadCount > 0 && state.settings.sound) playCutePetSound();
+  }, [ready, authed, unreadCount, state.settings.sound]);
+
+  if (!ready || !authed) return null;
 
   const markRead = (id: string) => setReadIds((s) => new Set([...s, id]));
   const markAll = () => setReadIds(new Set(alerts.map((a) => a.id)));

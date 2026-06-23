@@ -49,7 +49,7 @@ export default function SignupPage() {
 
   return (
     <div style={{ minHeight: "100dvh", background: T.bg, display: "flex", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: T.maxW, padding: "28px 24px 40px" }}>
+      <div className="pawzo-paws" style={{ width: "100%", maxWidth: T.maxW, padding: "28px 24px 40px", backgroundColor: "var(--p-bg)" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
           <PawzoLogo size={24} />
         </div>
