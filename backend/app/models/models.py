@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Boolean, ForeignKey, Text, DateTime
+from sqlalchemy import Column, String, Float, Boolean, ForeignKey, Text, DateTime, Integer, BigInteger
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from datetime import datetime
@@ -19,10 +19,12 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     created_at    = Column(DateTime, default=datetime.utcnow)
 
-    pets     = relationship("Pet", back_populates="owner", cascade="all, delete-orphan")
-    vet      = relationship("Vet", back_populates="owner", uselist=False, cascade="all, delete-orphan")
-    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    activity = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
+    pets          = relationship("Pet", back_populates="owner", cascade="all, delete-orphan")
+    vet           = relationship("Vet", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+    settings      = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    activity      = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
+    documents     = relationship("Document", back_populates="user", cascade="all, delete-orphan")
+    alert_records = relationship("AlertRecord", back_populates="user", cascade="all, delete-orphan")
 
 
 class Pet(Base):
@@ -75,6 +77,7 @@ class MealLog(Base):
     meal_id = Column(String, ForeignKey("meals.id", ondelete="CASCADE"), nullable=False)
     date    = Column(String, nullable=False)
     done    = Column(Boolean, default=False)
+    fed_at  = Column(Integer, nullable=True)  # epoch ms when meal was marked fed
 
     pet  = relationship("Pet", back_populates="meal_logs")
     meal = relationship("Meal", back_populates="meal_logs")
@@ -207,3 +210,50 @@ class UserActivity(Base):
     date    = Column(String, nullable=False)  # ISO yyyy-mm-dd
 
     user = relationship("User", back_populates="activity")
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id          = Column(String, primary_key=True, default=new_id)
+    user_id     = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name        = Column(String, nullable=False)
+    category    = Column(String, default="Other")
+    file_data   = Column(Text, default="")   # base64 data URL
+    mime_type   = Column(String, default="")
+    uploaded_at = Column(String, nullable=False)
+
+    user = relationship("User", back_populates="documents")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id         = Column(String, primary_key=True, default=new_id)
+    user_id    = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    pet_id     = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=True)
+    role       = Column(String, nullable=False)   # "user" | "ai"
+    text       = Column(Text, nullable=False)
+    image_data = Column(Text, nullable=True)      # base64-encoded image (user messages only)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AlertRecord(Base):
+    __tablename__ = "alert_records"
+
+    alert_key    = Column(String, primary_key=True)
+    user_id      = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    pet_id       = Column(String, nullable=True)
+    emoji        = Column(String, default="")
+    title        = Column(String, nullable=False)
+    body         = Column(Text, default="")
+    when_display = Column(String, default="")
+    when_ms      = Column(BigInteger, nullable=True)
+    group_name   = Column(String, default="Today")
+    color        = Column(String, default="")
+    sort_time    = Column(BigInteger, nullable=True)
+    status       = Column(String, default="upcoming")
+    created_at   = Column(BigInteger, nullable=False)
+    expires_at   = Column(BigInteger, nullable=False)
+
+    user = relationship("User", back_populates="alert_records")
