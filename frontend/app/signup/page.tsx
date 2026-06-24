@@ -44,7 +44,7 @@ export default function SignupPage() {
     const r = await register({ name: form.name.trim(), username: form.username.trim(), email: form.email.trim(), password: form.pw });
     setLoading(false);
     if (!r.ok) { setServerError(r.error ?? "Could not create account."); return; }
-    router.push("/onboarding");
+    router.push("/verify");
   }
 
   return (
