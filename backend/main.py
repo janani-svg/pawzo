@@ -44,3 +44,7 @@ app.include_router(alerts.router,    prefix="/user",  tags=["alerts"])
 @app.get("/")
 def home():
     return {"message": "Pawzo API is running"}
+
+@app.get("/debug-routes")
+def debug_routes():
+    return {"routes": [r.path for r in app.routes]}

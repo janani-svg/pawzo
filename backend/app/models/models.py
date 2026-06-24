@@ -25,6 +25,9 @@ class User(Base):
     verification_code         = Column(String, nullable=True)
     verification_code_expires = Column(DateTime, nullable=True)
 
+    password_reset_token         = Column(String, nullable=True)
+    password_reset_token_expires = Column(DateTime, nullable=True)
+
     pets          = relationship("Pet", back_populates="owner", cascade="all, delete-orphan")
     vet           = relationship("Vet", back_populates="owner", uselist=False, cascade="all, delete-orphan")
     settings      = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")

@@ -116,7 +116,7 @@ def _fallback_reply(text: str, pet: Optional[Pet]) -> str:
     return f"{lead}I'm having trouble connecting right now. Please try again in a moment 🐾"
 
 
-@router.get("/chat", response_model=List[ChatMessageOut])
+@router.get("/chat/history", response_model=List[ChatMessageOut])
 async def get_chat_history(
     pet_id: Optional[str] = None,
     limit: int = 50,
@@ -131,7 +131,7 @@ async def get_chat_history(
     return result.scalars().all()
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat/send", response_model=ChatResponse)
 async def send_chat_message(
     body: ChatSend,
     current_user: User = Depends(get_current_user),

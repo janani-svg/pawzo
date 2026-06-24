@@ -42,6 +42,11 @@ export const authApi = {
   sendVerification: () => post<{ message: string }>("/auth/send-verification"),
 
   verifyEmail: (code: string) => post<ApiUser>("/auth/verify-email", { code }),
+
+  forgotPassword: (email: string) => post<{ message: string }>("/auth/forgot-password", { email }),
+
+  resetPassword: (token: string, new_password: string) =>
+    post<{ message: string }>("/auth/reset-password", { token, new_password }),
 };
 
 /* ── Pets ───────────────────────────────────────────────────────────────── */

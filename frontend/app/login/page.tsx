@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PawzoLogo, PrimaryButton, T, inputStyle } from "../components/pawzo-ui";
 import { usePawzo } from "../lib/store";
-import { accountApi } from "../lib/api";
+import { accountApi, authApi } from "../lib/api";
 
 /* ---------------------------------------------------------------- pet mosaic */
 const PETS = [
@@ -35,10 +35,9 @@ export default function LoginPage() {
   const [cancelError, setCancelError]     = useState("");
 
   const [fEmail,   setFEmail]   = useState("");
-  const [fPw,      setFPw]      = useState("");
-  const [fConfirm, setFConfirm] = useState("");
   const [fMsg,     setFMsg]     = useState("");
   const [fErr,     setFErr]     = useState("");
+  const [fLoading, setFLoading] = useState(false);
 
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -63,15 +62,19 @@ export default function LoginPage() {
     router.push("/dashboard");
   }
 
-  function doReset(e: React.FormEvent) {
+  async function doReset(e: React.FormEvent) {
     e.preventDefault();
     setFErr(""); setFMsg("");
     if (!validEmail(fEmail)) { setFErr("Enter a valid email address."); return; }
-    if (!strongPassword(fPw)) { setFErr("Password needs 8+ chars, an uppercase letter, a number and a symbol."); return; }
-    if (fPw !== fConfirm) { setFErr("Passwords don't match yet."); return; }
-    const r = resetPassword(fEmail.trim(), fPw);
-    if (!r.ok) { setFErr(r.error ?? "Could not reset."); return; }
-    setFMsg("Password reset coming soon — contact support.");
+    setFLoading(true);
+    try {
+      const r = await authApi.forgotPassword(fEmail.trim());
+      setFMsg(r.message);
+    } catch (e: unknown) {
+      setFErr((e as Error).message ?? "Something went wrong.");
+    } finally {
+      setFLoading(false);
+    }
   }
 
   return (
@@ -245,24 +248,23 @@ export default function LoginPage() {
           ) : (
             <>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 4px" }}>
-                Reset password 🔑
+                Forgot password 🔑
               </h1>
               <p style={{ fontSize: 13.5, color: T.gray, textAlign: "center", margin: "0 0 22px" }}>
-                Enter your email and choose a new password
+                Enter your email and we&apos;ll send you a reset link.
               </p>
 
               <form onSubmit={doReset}>
-                <label style={{ display: "block", marginBottom: 13 }}>
-                  <span style={fieldLabel}>Email</span>
-                  <input style={inputStyle} type="email" placeholder="you@pawzo.com" value={fEmail} onChange={(e) => { setFEmail(e.target.value); setFErr(""); }} />
-                </label>
-                <label style={{ display: "block", marginBottom: 13 }}>
-                  <span style={fieldLabel}>New password</span>
-                  <input style={inputStyle} type="password" placeholder="8+ chars, A-Z, 0-9, symbol" value={fPw} onChange={(e) => { setFPw(e.target.value); setFErr(""); }} />
-                </label>
                 <label style={{ display: "block", marginBottom: 16 }}>
-                  <span style={fieldLabel}>Confirm new password</span>
-                  <input style={inputStyle} type="password" placeholder="Re-enter password" value={fConfirm} onChange={(e) => { setFConfirm(e.target.value); setFErr(""); }} />
+                  <span style={fieldLabel}>Email address</span>
+                  <input
+                    style={inputStyle}
+                    type="email"
+                    placeholder="you@pawzo.com"
+                    value={fEmail}
+                    onChange={(e) => { setFEmail(e.target.value); setFErr(""); }}
+                    autoComplete="email"
+                  />
                 </label>
 
                 {fErr && <ErrorBox>{fErr}</ErrorBox>}
@@ -272,8 +274,8 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <PrimaryButton full type="submit" style={{ height: 52, borderRadius: 26 }}>
-                  Update password
+                <PrimaryButton full type="submit" disabled={fLoading} style={{ height: 52, borderRadius: 26 }}>
+                  {fLoading ? "Sending…" : "Send reset link"}
                 </PrimaryButton>
               </form>
 

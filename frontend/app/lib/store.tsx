@@ -341,8 +341,9 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         const res = await authApi.login({ identifier: idOrEmail, password });
         localStorage.setItem("pawzo:token", res.access_token);
         const data = await loadAll(res.user.id);
-        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified: (res.user as unknown as { email_verified?: boolean }).email_verified ?? false }));
-        return { ok: true };
+        const emailVerified = (res.user as unknown as { email_verified?: boolean }).email_verified ?? false;
+        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified }));
+        return { ok: true, emailVerified };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };
       }
