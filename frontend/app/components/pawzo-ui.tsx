@@ -434,13 +434,15 @@ export function BottomNav() {
                 style={{
                   width: 46,
                   height: 46,
-                  borderRadius: 16,
-                  background: active ? T.gradient : "transparent",
+                  borderRadius: 15,
+                  background: item.tint,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  transition: "background 200ms, box-shadow 200ms",
-                  boxShadow: active ? "0 4px 14px rgba(236,72,153,0.38)" : "none",
+                  transition: "box-shadow 200ms, transform 150ms",
+                  boxShadow: active
+                    ? `0 0 0 2.5px ${item.ink}, 0 5px 13px ${item.ink}40`
+                    : "inset 0 0 0 1px rgba(0,0,0,0.04)",
                 }}
               >
                 <Icon color={item.ink} />
@@ -472,9 +474,8 @@ export function BottomNav() {
             <span
               style={{
                 fontSize: 10.5,
-                fontWeight: active ? 700 : 500,
-                color: active ? T.pink : "#B0B7C3",
-                letterSpacing: "0.01em",
+                fontWeight: active ? 800 : 600,
+                color: active ? item.ink : T.grayLight,
               }}
             >
               {item.label}
