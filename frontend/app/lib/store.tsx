@@ -27,7 +27,7 @@ export type HealthRecord = { id: string; petId: string; kind: "vet" | "medicatio
 export type Expense     = { id: string; petId: string; category: string; amount: number; date: string; note: string; receipt: string };
 export type Milestone   = { id: string; petId: string; emoji: string; title: string; date: string };
 export type Memory      = { id: string; petId: string; photo: string; caption: string; date: string; title: string; mood: string; tags: string; mediaType: string; timeTaken: string };
-export type CalendarEvent = { id: string; petId: string; title: string; date: string; time: string; emoji: string };
+export type CalendarEvent = { id: string; petId: string; title: string; date: string; time: string; allDay: boolean; emoji: string };
 export type Vet         = { name: string; clinic: string; phone: string; altPhone: string; address: string } | null;
 export type Document    = { id: string; name: string; category: string; fileData: string; mimeType: string; uploadedAt: string };
 export type Settings    = { theme: "light" | "dark" | "auto"; push: boolean; email: boolean; sound: boolean; units: "metric" | "imperial"; currency: string; language: string };
@@ -88,7 +88,7 @@ const toHealth      = (h: ApiHealthRecord): HealthRecord => ({ id: h.id, petId: 
 const toExpense     = (e: ApiExpense):      Expense     => ({ id: e.id, petId: e.pet_id, category: e.category ?? "", amount: e.amount, date: e.date, note: e.note ?? "", receipt: e.receipt_url ?? "" });
 const toMilestone   = (m: ApiMilestone):   Milestone   => ({ id: m.id, petId: m.pet_id, emoji: m.emoji ?? "", title: m.title, date: m.date });
 const toMemory      = (m: ApiMemory):       Memory      => ({ id: m.id, petId: m.pet_id, photo: m.photo_url ?? "", caption: m.caption ?? "", date: m.date, title: m.title ?? "", mood: m.mood ?? "", tags: m.tags ?? "", mediaType: m.media_type ?? "photo", timeTaken: m.time_taken ?? "" });
-const toEvent       = (e: ApiCalendarEvent): CalendarEvent => ({ id: e.id, petId: e.pet_id, title: e.title, date: e.date, time: e.time ?? "", emoji: e.emoji ?? "" });
+const toEvent       = (e: ApiCalendarEvent): CalendarEvent => ({ id: e.id, petId: e.pet_id, title: e.title, date: e.date, time: e.time ?? "", allDay: e.all_day ?? false, emoji: e.emoji ?? "" });
 const toVet         = (v: ApiVet | null): Vet => v ? { name: v.name, clinic: v.clinic ?? "", phone: v.phone ?? "", altPhone: v.alt_phone ?? "", address: v.address ?? "" } : null;
 const toDocument    = (d: ApiDocument): Document => ({ id: d.id, name: d.name, category: d.category, fileData: d.file_data, mimeType: d.mime_type, uploadedAt: d.uploaded_at });
 const toSettings    = (s: ApiSettings): Settings => ({ theme: (s.theme as Settings["theme"]) ?? "light", push: s.push, email: s.email, sound: s.sound, units: (s.units as Settings["units"]) ?? "metric", currency: s.currency ?? "USD", language: s.language ?? "English" });
@@ -154,15 +154,15 @@ async function loadAll(userId: string): Promise<Partial<State>> {
 
   const [meals, mealLogs, vaccinations, weights, health, expenses, milestones, memories, events, vet, docs, settings, activityRes, meRes, pastAlerts] =
     await Promise.all([
-      Promise.all(ids.map((id) => mealsApi.list(id))).then((r) => r.flat().map(toMeal)),
-      Promise.all(ids.map((id) => mealLogsApi.list(id))).then((r) => r.flat().map(toMealLog)),
-      Promise.all(ids.map((id) => vaccinationsApi.list(id))).then((r) => r.flat().map(toVaccination)),
-      Promise.all(ids.map((id) => weightsApi.list(id))).then((r) => r.flat().map(toWeight)),
-      Promise.all(ids.map((id) => healthApi.list(id))).then((r) => r.flat().map(toHealth)),
-      Promise.all(ids.map((id) => expensesApi.list(id))).then((r) => r.flat().map(toExpense)),
-      Promise.all(ids.map((id) => milestonesApi.list(id))).then((r) => r.flat().map(toMilestone)),
-      Promise.all(ids.map((id) => memoriesApi.list(id))).then((r) => r.flat().map(toMemory)),
-      Promise.all(ids.map((id) => calendarApi.list(id))).then((r) => r.flat().map(toEvent)),
+      Promise.all(ids.map((id) => mealsApi.list(id))).then((r) => r.flat().map(toMeal)).catch(() => [] as Meal[]),
+      Promise.all(ids.map((id) => mealLogsApi.list(id))).then((r) => r.flat().map(toMealLog)).catch(() => [] as MealLog[]),
+      Promise.all(ids.map((id) => vaccinationsApi.list(id))).then((r) => r.flat().map(toVaccination)).catch(() => [] as Vaccination[]),
+      Promise.all(ids.map((id) => weightsApi.list(id))).then((r) => r.flat().map(toWeight)).catch(() => [] as WeightEntry[]),
+      Promise.all(ids.map((id) => healthApi.list(id))).then((r) => r.flat().map(toHealth)).catch(() => [] as HealthRecord[]),
+      Promise.all(ids.map((id) => expensesApi.list(id))).then((r) => r.flat().map(toExpense)).catch(() => [] as Expense[]),
+      Promise.all(ids.map((id) => milestonesApi.list(id))).then((r) => r.flat().map(toMilestone)).catch(() => [] as Milestone[]),
+      Promise.all(ids.map((id) => memoriesApi.list(id))).then((r) => r.flat().map(toMemory)).catch(() => [] as Memory[]),
+      Promise.all(ids.map((id) => calendarApi.list(id))).then((r) => r.flat().map(toEvent)).catch(() => [] as CalendarEvent[]),
       userApi.getVet().then(toVet).catch(() => null as Vet),
       documentsApi.list().then((r) => r.map(toDocument)).catch(() => [] as Document[]),
       userApi.getSettings().then(toSettings).catch(() => EMPTY.settings),
@@ -192,8 +192,9 @@ type Ctx = {
   state: State;
   register:      (a: { name: string; username: string; email: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
   login:         (idOrEmail: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  logout:        () => void;
-  resetPassword: (email: string, newPassword: string) => { ok: boolean; error?: string };
+  logout:           () => void;
+  requestDeletion:  () => Promise<void>;
+  resetPassword:    (email: string, newPassword: string) => { ok: boolean; error?: string };
   sendVerification: () => Promise<{ ok: boolean; error?: string; message?: string }>;
   verifyEmail:      (code: string) => Promise<{ ok: boolean; error?: string }>;
   currentUser:      () => { id: string; name: string; username: string; email: string; photo: string } | null;
@@ -350,6 +351,10 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
     logout: () => {
       localStorage.removeItem("pawzo:token");
       mutate(() => ({ ...EMPTY }));
+    },
+
+    requestDeletion: async () => {
+      await userApi.requestDeletion();
     },
 
     resetPassword: () => ({ ok: false, error: "Password reset via email — coming soon." }),
@@ -585,6 +590,7 @@ function toApiBody(coll: CollKey, item: Record<string, unknown>): Record<string,
     if ("mediaType"  in body) { body.media_type = body.mediaType; delete body.mediaType; }
   }
   if (coll === "mealLogs"     && "mealId"  in body) { body.meal_id     = body.mealId;  delete body.mealId; }
+  if (coll === "events"       && "allDay"  in body) { body.all_day     = body.allDay;  delete body.allDay; }
   return body;
 }
 
@@ -602,6 +608,7 @@ function convertFromApi(coll: CollKey, petId: string, res: Record<string, unknow
     if (!("mood"  in base))     base.mood      = "";
     if (!("tags"  in base))     base.tags      = "";
   }
+  if (coll === "events")       { base.allDay   = res.all_day  ?? false; delete (base as Record<string, unknown>).all_day; }
   if (coll === "mealLogs")     { base.mealId  = res.meal_id ?? "";     delete (base as Record<string, unknown>).meal_id; }
   return base;
 }
@@ -709,29 +716,46 @@ export function deriveAlerts(state: State): Alert[] {
   // Returns stored full datetime for an alert, or now if not yet stamped
   const seenAt = (id: string): string => fmtDateTime(stamps[id] ?? now.getTime());
 
-  // Deterministic pick — varies daily so phrases rotate each day
-  const pick = <T,>(arr: T[], seed: string) => arr[(seed + today).split("").reduce((a, c) => a + c.charCodeAt(0), 0) % arr.length];
+  // Deterministic pick — varies by day + hour so phrases rotate throughout the day
+  const pick = <T,>(arr: T[], seed: string) => arr[(seed + today + hourSlot).split("").reduce((a, c) => a + c.charCodeAt(0), 0) % arr.length];
 
-  const MEAL_FED_EMOJI   = ["😋", "🥰", "🎉", "🐾", "🥳", "😸", "🎊"];
+  const hourSlot = String(now.getHours()); // changes every hour for sub-daily variety
+  const MEAL_FED_EMOJI   = ["😋", "🥰", "🎉", "🐾", "🥳", "😸", "🎊", "🍽️", "🌟", "💛"];
   const MEAL_FED_COLOR   = ["#FEF9C3", "#FCE7F3", "#D1FAE5", "#FFF0F5", "#E0F2FE"];
   const MEAL_FED_BODY    = [
-    (p: string, m: string) => `${p} is doing a happy dance after their ${m}! Full and loved.`,
-    (p: string, m: string) => `${m} served! ${p} gives you two paws up. Great pet parent!`,
-    (p: string, m: string) => `${p} polished off every last bite of ${m}. Mission accomplished!`,
-    (p: string, m: string) => `${p}'s belly is full of ${m} and happiness. You're the best!`,
+    (p: string, m: string) => `${p} is doing a happy dance after their ${m}! Full and loved. 💛`,
+    (p: string, m: string) => `${m} served! ${p} gives you two paws up. Stellar pet parent right here!`,
+    (p: string, m: string) => `${p} polished off every last bite of ${m}. Licked the bowl clean!`,
+    (p: string, m: string) => `${p}'s belly is full of ${m} and pure happiness. You rock!`,
+    (p: string, m: string) => `Clean plate club! ${p} absolutely demolished that ${m}.`,
+    (p: string, m: string) => `${m} down the hatch! ${p} is one very satisfied pet right now.`,
+    (p: string, m: string) => `Nom nom nom! ${p} says that ${m} hit different today. 😋`,
+    (p: string, m: string) => `${p} approved the ${m} — no crumbs left behind. Success!`,
   ];
 
-  const MEAL_HUNGRY_EMOJI = ["🍖", "😤", "🥺", "👀", "😾"];
+  const MEAL_HUNGRY_EMOJI = ["🍖", "😤", "🥺", "👀", "😾", "🫠", "🤤"];
   const MEAL_HUNGRY_BODY  = [
-    (p: string, m: string) => `${p}'s stomach just sent an official complaint about the missing ${m}.`,
+    (p: string, m: string) => `${p}'s stomach just filed an official complaint about the missing ${m}.`,
     (p: string, m: string) => `${p} is giving you the most dramatic hungry eyes right now. ${m} time!`,
-    (p: string, m: string) => `${m} o'clock! ${p} is fully in "feed me" mode.`,
+    (p: string, m: string) => `${m} o'clock! ${p} is fully locked into "feed me" mode.`,
     (p: string, m: string) => `${p} has officially declared a hunger emergency. ${m} needed ASAP!`,
+    (p: string, m: string) => `The ${m} isn't going to serve itself. ${p} is waiting…`,
+    (p: string, m: string) => `${p} just stared at the bowl for 10 minutes straight. ${m} time!`,
   ];
 
-  const MEAL_SKIP_EMOJI      = ["😿", "🙀", "💔", "😢", "😭"];
+  const MEAL_SKIP_EMOJI      = ["😿", "🙀", "💔", "😢", "😭", "🫤"];
   const MEAL_SKIP_COLOR      = ["#FEE2E2", "#FFF1F2", "#FFEDD5"];
-  const MEAL_LATE_FED_EMOJI  = ["🥲", "😅", "🎉", "🙈", "🥹", "😌", "🐾"];
+  const MEAL_LATE_FED_EMOJI  = ["🥲", "😅", "🎉", "🙈", "🥹", "😌", "🐾", "🌅", "☕", "🌙"];
+  const MEAL_LATE_FED_BODY   = [
+    (p: string, m: string) => `Late is better than never! ${p}'s ${m} is finally sorted. 🐾`,
+    (p: string, m: string) => `${p} waited patiently and the ${m} finally arrived. Hero move!`,
+    (p: string, m: string) => `Fashionably late ${m} for ${p}! They forgive you — this time. 😅`,
+    (p: string, m: string) => `${p} gave you the side-eye but ate every bite of that ${m} anyway.`,
+    (p: string, m: string) => `The ${m} arrived late but ${p} demolished it in seconds. Worth the wait!`,
+    (p: string, m: string) => `Better a delayed ${m} than a skipped one! ${p} is a happy camper now.`,
+    (p: string, m: string) => `${p} has officially forgiven you. The ${m} was worth the suspense!`,
+    (p: string, m: string) => `Late night ${m} hits different! ${p} loved every bite.`,
+  ];
 
   const MED_DONE_EMOJI   = ["🌟", "💫", "🏆", "🎊", "💪", "🌸", "⭐"];
   const MED_DONE_COLOR   = ["#EDE9FE", "#D1FAE5", "#E0F2FE", "#FFF0F5", "#FEF9C3"];
@@ -784,8 +808,8 @@ export function deriveAlerts(state: State): Alert[] {
           || (typeof window !== "undefined"
               ? (parseInt(localStorage.getItem(`pawzo:meal-fed-at-${pet.id}-${m.id}-${today}`) ?? "0", 10) || 0)
               : 0)
-          || now.getTime();
-        out.push({ id: `meal-done-${m.id}-${today}`, emoji: mealTimePassed ? pick(MEAL_LATE_FED_EMOJI, seed) : pick(MEAL_FED_EMOJI, seed), title: mealTimePassed ? `${m.name} fed` : `${pet.name} has been fed!`, body: mealTimePassed ? `${pet.name}'s ${m.name} was given. Better late than never! 🐾` : pick(MEAL_FED_BODY, seed)(pet.name, m.name), when: fmtDateTime(fedAtMs), group: "Today", color: pick(MEAL_FED_COLOR, seed), sortTime: fedAtMs, status: "completed" as const });
+          || (m.time ? hhmmToMs(m.time) : now.getTime());
+        out.push({ id: `meal-done-${m.id}-${today}`, emoji: mealTimePassed ? pick(MEAL_LATE_FED_EMOJI, seed) : pick(MEAL_FED_EMOJI, seed), title: mealTimePassed ? `${m.name} fed` : `${pet.name} has been fed!`, body: mealTimePassed ? pick(MEAL_LATE_FED_BODY, seed)(pet.name, m.name) : pick(MEAL_FED_BODY, seed)(pet.name, m.name), when: fmtDateTime(fedAtMs), group: "Today", color: pick(MEAL_FED_COLOR, seed), sortTime: fedAtMs, status: "completed" as const });
       }
     }
 
@@ -794,7 +818,7 @@ export function deriveAlerts(state: State): Alert[] {
       const seed = med.id + pet.id;
       const given = doneMedKeys.has(`med-${med.id}`);
       if (given) {
-        out.push({ id: `med-done-${med.id}-${today}`, emoji: pick(MED_DONE_EMOJI, seed), title: `${med.title} given`, body: `Great job! ${pet.name} got their ${med.title} today. Stay consistent!`, when: seenAt(`med-done-${med.id}-${today}`), group: "Today", color: pick(MED_DONE_COLOR, seed), sortTime: now.getTime(), status: "completed" as const });
+        { const medDoneId = `med-done-${med.id}-${today}`; out.push({ id: medDoneId, emoji: pick(MED_DONE_EMOJI, seed), title: `${med.title} given`, body: `Great job! ${pet.name} got their ${med.title} today. Stay consistent!`, when: seenAt(medDoneId), group: "Today", color: pick(MED_DONE_COLOR, seed), sortTime: stamps[medDoneId] ?? now.getTime(), status: "completed" as const }); }
       } else {
         const hour = now.getHours();
         const slot = hour >= 21 ? "Last chance tonight! 🌙" : hour >= 18 ? "Evening reminder 🌆" : hour >= 12 ? "Afternoon nudge 🌤️" : "Morning reminder ☀️";
@@ -807,17 +831,53 @@ export function deriveAlerts(state: State): Alert[] {
       const seed = e.id + pet.id;
       const days = daysUntil(e.date);
       const isDone = doneScheduleKeys.has(`event-${e.id}`);
-      const isMissed = !isDone && (days < 0 || (days === 0 && !!e.time && e.time < currentTime));
+      const evtEmoji = e.emoji || pick(EVT_TODAY_EMOJI, seed);
 
-      if (isDone && days >= -1 && days <= 0) {
+      // Completed today (all-day events can have date in past)
+      if (isDone && (days <= 0) && (e.allDay || days >= -1)) {
         const doneId = `evt-done-${e.id}-${today}`;
         out.push({ id: doneId, emoji: pick(EVT_DONE_EMOJI, seed), title: `${e.title} completed`, body: `${e.title} for ${pet.name} is all wrapped up. You're on a roll!`, when: seenAt(doneId), group: "Today", color: pick(EVT_DONE_COLOR, seed), sortTime: stamps[doneId] ?? now.getTime(), status: "completed" as const });
-      } else if (isMissed && days >= -3) {
-        out.push({ id: `evt-missed-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `Missed: ${e.title}`, body: `${e.title} for ${pet.name} was due ${days === 0 ? "today" : `${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""} ago`}. Mark it done or reschedule.`, when: fmtDateTime(dateToMs(e.date, e.time)), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: dateToMs(e.date, e.time), status: "missed" as const });
-      } else if (!isDone && days >= 0 && days <= 7) {
-        const evtEmoji = e.emoji || pick(EVT_TODAY_EMOJI, seed);
-        out.push({ id: `evt-${e.id}`, emoji: evtEmoji, title: e.title, body: days === 0 ? `Today${e.time ? ` at ${e.time}` : ""}! Don't leave ${pet.name} hanging 🥰` : `Coming up in ${days} day${days > 1 ? "s" : ""} — get ready!`, when: fmtDateTime(dateToMs(e.date, e.time)), group: days === 0 ? "Today" : "Upcoming", color: pick(EVT_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const });
+        continue;
       }
+
+      // Past events not done → missed (skip all-day events — they recur daily)
+      if (!isDone && !e.allDay && days < 0 && days >= -3) {
+        out.push({ id: `evt-missed-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `Missed: ${e.title}`, body: `${e.title} for ${pet.name} was due ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""} ago. Mark it done or reschedule.`, when: fmtDateTime(dateToMs(e.date, e.time)), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: dateToMs(e.date, e.time), status: "missed" as const });
+        continue;
+      }
+
+      // Today (or any past date for all-day events) — show daily reminder
+      if (!isDone && (days === 0 || (e.allDay && days < 0))) {
+        if (e.time) {
+          const evtMs     = hhmmToMs(e.time);
+          const minus10Ms = evtMs - 10 * 60 * 1000;
+          const plus10Ms  = evtMs + 10 * 60 * 1000;
+          const nowMs     = now.getTime();
+
+          if (nowMs >= plus10Ms) {
+            // 10+ mins past event time and not done → skipped
+            out.push({ id: `evt-skipped-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `${pet.name} skipped: ${e.title}`, body: `${e.title} was scheduled at ${e.time} and wasn't marked done. Did ${pet.name} miss it?`, when: fmtDateTime(plus10Ms), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: plus10Ms, status: "missed" as const });
+          } else if (nowMs >= evtMs) {
+            // Exact time window
+            out.push({ id: `evt-now-${e.id}`, emoji: evtEmoji, title: `${e.title} — right now!`, body: `It's time for ${pet.name}'s ${e.title}! Don't keep them waiting 🐾`, when: fmtDateTime(evtMs), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: evtMs, status: "upcoming" as const });
+          } else if (nowMs >= minus10Ms) {
+            // 10-minute countdown
+            const minsLeft = Math.max(1, Math.round((evtMs - nowMs) / 60000));
+            out.push({ id: `evt-soon-${e.id}`, emoji: "⏰", title: `${e.title} in ${minsLeft} min${minsLeft !== 1 ? "s" : ""}!`, body: `${pet.name}'s ${e.title} starts at ${e.time}. Get ready!`, when: fmtDateTime(minus10Ms), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: minus10Ms, status: "upcoming" as const });
+          } else if (now.getHours() >= 8) {
+            // Morning reminder — shown from 8 AM until 10-min window opens
+            const morningId = `evt-morning-${e.id}`;
+            out.push({ id: morningId, emoji: evtEmoji, title: `Today: ${e.title}`, body: `${pet.name} has ${e.title} at ${e.time} today. Don't forget! 🗓️`, when: seenAt(morningId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[morningId] ?? now.getTime(), status: "upcoming" as const });
+          }
+        } else {
+          // No time — all-day reminder visible from 8 AM
+          if (now.getHours() >= 8) {
+            const allDayId = `evt-${e.id}`;
+            out.push({ id: allDayId, emoji: evtEmoji, title: e.title, body: `Today is the day for ${pet.name}'s ${e.title}! Tap to mark it done when finished. 🐾`, when: seenAt(allDayId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[allDayId] ?? now.getTime(), status: "upcoming" as const });
+          }
+        }
+      }
+      // days > 0 → no alert until the event day arrives
     }
 
     /* ── Vaccinations ──────────────────────────────────────────────── */
@@ -839,7 +899,7 @@ export function deriveAlerts(state: State): Alert[] {
       const bdayIso = `${bday.getFullYear()}-${String(bm).padStart(2, "0")}-${String(bd).padStart(2, "0")}`;
       if (bdayDays === 0) {
         const bdayId = `bday-${pet.id}-${today}`;
-        out.push({ id: bdayId, emoji: "🎂", title: `Happy Birthday, ${pet.name}! 🥳`, body: `${pet.name} turns ${age} today! Give them extra cuddles and maybe a birthday treat! 🎊`, when: seenAt(bdayId), group: "Today", color: "#FEF3C7", sortTime: now.getTime() - 200, status: "upcoming" as const });
+        out.push({ id: bdayId, emoji: "🎂", title: `Happy Birthday, ${pet.name}! 🥳`, body: `${pet.name} turns ${age} today! Give them extra cuddles and maybe a birthday treat! 🎊`, when: seenAt(bdayId), group: "Today", color: "#FEF3C7", sortTime: stamps[bdayId] ?? now.getTime(), status: "upcoming" as const });
       } else if (bdayDays <= 7) {
         const bdayUpcomingWhen = `${fmtDate(bdayIso)}, 12:00 AM`;
         out.push({ id: `bday-${pet.id}-upcoming`, emoji: "🎂", title: `${pet.name}'s birthday in ${bdayDays} day${bdayDays > 1 ? "s" : ""}!`, body: bdayDays === 1 ? `${pet.name} turns ${age} tomorrow! Get those birthday treats ready! 🐾` : `${pet.name} turns ${age} on ${fmtDate(bdayIso)}. Start planning something special! 🎉`, when: bdayUpcomingWhen, group: "Upcoming", color: "#FEF9C3", sortTime: now.getTime() - 1 - bdayDays * 1000, status: "upcoming" as const });

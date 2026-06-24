@@ -1,12 +1,8 @@
 "use client";
 
-/* PAWZO Settings — wired to the global store. Theme changes apply immediately
-   (the store's useEffect writes data-theme to the document). Toggles persist
-   on refresh. Logout calls store.logout() and returns to /login. */
-
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, SectionTitle, T, ChevronRight } from "../components/pawzo-ui";
-import { usePawzo, useRequireAuth } from "../lib/store";
+import { usePawzo, useRequireAuth, CURRENCIES } from "../lib/store";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -33,6 +29,17 @@ function Row({ label, right, onClick, last }: { label: string; right?: React.Rea
   );
 }
 
+const selectStyle: React.CSSProperties = {
+  border: "none",
+  background: "transparent",
+  fontSize: 13,
+  fontWeight: 700,
+  color: T.pinkDeep,
+  cursor: "pointer",
+  outline: "none",
+  maxWidth: 180,
+};
+
 export default function SettingsPage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
@@ -52,7 +59,7 @@ export default function SettingsPage() {
       <TopBar title="Settings" back="/dashboard" />
 
       <div style={{ padding: "4px 16px 0" }}>
-        {/* appearance / theme */}
+        {/* Appearance */}
         <SectionTitle>Appearance</SectionTitle>
         <div style={{ background: "var(--p-surface)", borderRadius: 18, padding: 12, boxShadow: T.shadowSoft }}>
           <div style={{ display: "flex", gap: 8 }}>
@@ -69,13 +76,13 @@ export default function SettingsPage() {
                   fontWeight: 700, fontSize: 13, cursor: "pointer",
                 }}
               >
-                {t === "light" ? "Light" : t === "dark" ? "Dark" : "Auto"}
+                {t === "light" ? "☀️ Light" : t === "dark" ? "🌙 Dark" : "⚙️ Auto"}
               </button>
             ))}
           </div>
         </div>
 
-        {/* notifications */}
+        {/* Notifications */}
         <SectionTitle>Notifications</SectionTitle>
         <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden" }}>
           <Row label="Push notifications" right={<Toggle on={push} onClick={() => setSettings({ push: !push })} />} />
@@ -83,35 +90,52 @@ export default function SettingsPage() {
           <Row label="Sound effects" right={<Toggle on={sound} onClick={() => setSettings({ sound: !sound })} />} last />
         </div>
 
-        {/* app preferences */}
+        {/* App preferences */}
         <SectionTitle>App preferences</SectionTitle>
         <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden" }}>
+          {/* Units */}
           <Row
             label={`Units: ${units === "metric" ? "Metric (kg, cm)" : "Imperial (lb, in)"}`}
             right={<ChevronRight color={T.grayLight} />}
             onClick={() => setSettings({ units: units === "metric" ? "imperial" : "metric" })}
           />
+
+          {/* Currency — full dropdown */}
           <Row
-            label={`Currency: ${currency}`}
-            right={<ChevronRight color={T.grayLight} />}
-            onClick={() => {
-              const options = ["USD", "EUR", "GBP", "INR", "AUD", "CAD", "SGD"];
-              const next = options[(options.indexOf(currency) + 1) % options.length];
-              setSettings({ currency: next });
-            }}
+            label="Currency"
+            right={
+              <select
+                value={currency}
+                onChange={(e) => setSettings({ currency: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                style={selectStyle}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
+              </select>
+            }
           />
+
+          {/* Language — English only */}
           <Row
-            label={`Language: ${language}`}
-            right={<ChevronRight color={T.grayLight} />}
+            label="Language"
             last
+            right={
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.pinkDeep }}>
+                English <span style={{ color: T.grayLight, fontWeight: 500 }}>(Default)</span>
+              </span>
+            }
           />
         </div>
 
-        {/* privacy & data */}
+        {/* Privacy */}
         <SectionTitle>Privacy &amp; data</SectionTitle>
         <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden" }}>
-          <Row label="Privacy policy" right={<ChevronRight color={T.grayLight} />} onClick={() => {}} />
-          <Row label="Terms of use" right={<ChevronRight color={T.grayLight} />} onClick={() => {}} last />
+          <Row label="Privacy policy" right={<ChevronRight color={T.grayLight} />} onClick={() => router.push("/privacy")} />
+          <Row label="Terms of use" right={<ChevronRight color={T.grayLight} />} onClick={() => router.push("/terms")} last />
         </div>
 
         <button

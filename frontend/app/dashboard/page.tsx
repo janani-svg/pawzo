@@ -6,21 +6,35 @@
    data; everything reads from the store. Solid fills only. */
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, PawzoLogo, T, IconGear, IconPlus, ChevronRight } from "../components/pawzo-ui";
-import { usePawzo, useRequireAuth, deriveAlerts, todayISO } from "../lib/store";
+import { usePawzo, useRequireAuth, todayISO, appendActivity } from "../lib/store";
 
 export default function Dashboard() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
-  const { state, myPets, currentUser, selectPet, toggleMealLog, streak } = usePawzo();
+  const { state, myPets, currentUser, selectPet, toggleMealLog, streak, streakBroken } = usePawzo();
+
+  // today must be declared before useState so the initializer can use it
+  const today = todayISO();
+  const MED_DONE_KEY      = `pawzo:med-done-${today}`;
+  const SCHEDULE_DONE_KEY = `pawzo:schedule-done-${today}`;
+
+  const [doneItems, setDoneItems] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      const medKeys  = JSON.parse(localStorage.getItem(`pawzo:med-done-${date}`)      ?? "[]") as string[];
+      const schedKeys = JSON.parse(localStorage.getItem(`pawzo:schedule-done-${date}`) ?? "[]") as string[];
+      return new Set<string>([...medKeys, ...schedKeys]);
+    } catch { return new Set(); }
+  });
 
   if (!ready || !authed) return null;
 
   const pets = myPets();
   const user = currentUser();
-  const today = todayISO();
-  const alerts = deriveAlerts(state);
 
   // today's schedule = today's meals (per pet) + today's events
   const todaysMeals = state.meals
@@ -28,11 +42,110 @@ export default function Dashboard() {
     .map((m) => {
       const pet = pets.find((p) => p.id === m.petId)!;
       const log = state.mealLogs.find((l) => l.petId === m.petId && l.mealId === m.id && l.date === today);
-      return { type: "meal" as const, id: m.id, petId: m.petId, label: `${m.name} · ${pet.name}`, time: m.time, done: !!log?.done };
+      return { type: "meal" as const, id: m.id, petId: m.petId, petName: pet.name, mealName: m.name, label: `${m.name} · ${pet.name}`, time: m.time, done: !!log?.done };
     });
-  const todaysEvents = state.events.filter((e) => e.date === today && pets.some((p) => p.id === e.petId));
+  const todaysEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && (e.allDay ? e.date <= today : e.date === today));
+  const todaysVets = state.health.filter((h) => h.kind === "vet" && h.date === today && pets.some((p) => p.id === h.petId));
+  const activeMeds = state.health.filter((h) => h.kind === "medication" && h.active && pets.some((p) => p.id === h.petId));
+
+  const toggleDone = (key: string) =>
+    setDoneItems((s) => {
+      const n = new Set(s);
+      n.has(key) ? n.delete(key) : n.add(key);
+      const medKeys   = [...n].filter((k) => k.startsWith("med-"));
+      const schedKeys = [...n].filter((k) => !k.startsWith("med-"));
+      try {
+        localStorage.setItem(MED_DONE_KEY,      JSON.stringify(medKeys));
+        localStorage.setItem(SCHEDULE_DONE_KEY, JSON.stringify(schedKeys));
+      } catch { /* ignore */ }
+      return n;
+    });
+
+  async function fireEncouraging(title: string, body: string) {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") await Notification.requestPermission();
+    if (Notification.permission !== "granted") return;
+    try {
+      // getRegistration() returns immediately — never hangs like .ready does
+      const reg = "serviceWorker" in navigator
+        ? await navigator.serviceWorker.getRegistration().catch(() => undefined)
+        : undefined;
+      if (reg && "showNotification" in reg) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (reg as any).showNotification(title, { body, icon: "/favicon.ico" });
+      } else {
+        new Notification(title, { body, icon: "/favicon.ico" });
+      }
+    } catch { /* ignore */ }
+  }
+
+  const MEAL_DONE: Array<(p: string, m: string) => string> = [
+    (p, m) => `😋 ${p} is happily munching their ${m}! Full tummy achieved! 🐾`,
+    (p, m) => `🍽️ ${p} ate all their ${m}! One happy, well-fed pet!`,
+    (p, m) => `🎉 Meal done! ${p} gives you two paws up for the ${m}!`,
+    (p, m) => `✨ ${p} is full and content after their ${m}. Great pet parent!`,
+    (p, m) => `🐾 ${p}'s ${m} is done! They're wagging and hopping with joy!`,
+  ];
+  const EVENT_DONE: Array<(p: string, t: string) => string> = [
+    (p, t) => `🎉 ${t} for ${p} is all checked off! You're crushing it!`,
+    (p, t) => `✅ ${t} done! ${p} is lucky to have such a caring owner!`,
+    (p, t) => `⭐ Way to go! ${t} completed for ${p}. Keep up the great work!`,
+  ];
+  const VET_DONE: Array<(p: string) => string> = [
+    (p) => `🩺 Vet visit logged for ${p}! You're on top of their health!`,
+    (p) => `💪 Great job! ${p}'s appointment is done. Healthy pet, happy life!`,
+    (p) => `🌟 ${p}'s vet checkup is complete. You're an amazing pet parent!`,
+  ];
+  const MED_DONE_MSG: Array<(p: string, m: string) => string> = [
+    (p, m) => `💊 ${p} got their ${m}! You're helping them get better every day!`,
+    (p, m) => `🌸 Medicine given! ${p} is one step closer to full health!`,
+    (p, m) => `✨ ${p}'s ${m} is done for today. Consistency is the key to recovery!`,
+  ];
+
+  const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+  const handleMealToggle = (petId: string, mealId: string, wasDone: boolean, petName: string, mealName: string) => {
+    toggleMealLog(petId, mealId, today);
+    if (!wasDone) fireEncouraging("🍽️ Feeding logged!", pick(MEAL_DONE)(petName, mealName));
+  };
+
+  const handleToggleDone = (key: string, onDone?: () => void) => {
+    const wasNotDone = !doneItems.has(key);
+    toggleDone(key);
+    if (wasNotDone) {
+      const now = Date.now();
+      if (key.startsWith("event-")) {
+        const ev = state.events.find((e) => e.id === key.replace("event-", ""));
+        if (ev) {
+          const pet = pets.find((p) => p.id === ev.petId);
+          appendActivity({ icon: ev.emoji || "✅", title: `${ev.title} completed`, body: `${ev.title}${pet ? ` for ${pet.name}` : ""} was marked as completed.`, timestamp: now, status: "completed" });
+        }
+      } else if (key.startsWith("vet-")) {
+        const vet = todaysVets.find((h) => h.id === key.replace("vet-", ""));
+        if (vet) {
+          const pet = pets.find((p) => p.id === vet.petId);
+          appendActivity({ icon: "🩺", title: "Vet visit completed", body: `${pet?.name ?? "Pet"}'s vet appointment was completed.`, timestamp: now, status: "completed" });
+        }
+      } else if (key.startsWith("med-")) {
+        const med = activeMeds.find((h) => h.id === key.replace("med-", ""));
+        if (med) {
+          const pet = pets.find((p) => p.id === med.petId);
+          appendActivity({ icon: "💊", title: `${med.title} given`, body: `${pet?.name ?? "Pet"}'s ${med.title} was administered.`, timestamp: now, status: "completed" });
+        }
+      }
+      if (onDone) onDone();
+    }
+  };
   const memCount = state.memories.filter((mm) => pets.some((p) => p.id === mm.petId)).length;
-  const upcomingEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && e.date >= today).length;
+  const upcomingEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && e.date >= today && !doneItems.has(`event-${e.id}`)).length;
+
+  const totalScheduleItems = todaysMeals.length + todaysEvents.length + todaysVets.length + activeMeds.length;
+  const completedScheduleItems =
+    todaysMeals.filter((m) => m.done).length +
+    todaysEvents.filter((e) => doneItems.has(`event-${e.id}`)).length +
+    todaysVets.filter((h) => doneItems.has(`vet-${h.id}`)).length +
+    activeMeds.filter((h) => doneItems.has(`med-${h.id}`)).length;
+  const allScheduleDone = totalScheduleItems > 0 && completedScheduleItems === totalScheduleItems;
 
   return (
     <AppFrame>
@@ -41,8 +154,10 @@ export default function Dashboard() {
         <Link href="/settings" aria-label="Settings" style={{ position: "absolute", left: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
         <PawzoLogo size={25} />
         <Link href="/profile" aria-label="Profile" style={{ position: "absolute", right: 16 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>
-            {(user?.name?.[0] ?? "U").toUpperCase()}
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14, overflow: "hidden" }}>
+            {user?.photo
+              ? <img src={user.photo} alt="profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : (user?.name?.[0] ?? "U").toUpperCase()}
           </div>
         </Link>
       </header>
@@ -118,48 +233,116 @@ export default function Dashboard() {
         </div>
 
         {/* streak */}
-        {pets.length > 0 && (
-          <div style={{ padding: "0 16px 12px" }}>
-            <div style={{ background: "#D9F2B4", borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 28 }}>🔥</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 14, fontWeight: 800, color: "#3A6B00" }}>{streak()}-day streak</p>
-                <p style={{ fontSize: 11.5, color: "#3A6B00", opacity: 0.8 }}>{streak() > 0 ? "Keep the momentum going! 💪" : "Log something today to start a streak."}</p>
+        {pets.length > 0 && (() => {
+          const broken = streakBroken();
+          const days   = streak();
+          const bg     = broken ? "#FEE2E2" : "#D9F2B4";
+          const color  = broken ? "#991B1B" : "#3A6B00";
+          return (
+            <div style={{ padding: "0 16px 12px" }}>
+              <div style={{ background: bg, borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28 }}>{broken ? "💔" : days > 0 ? "🔥" : "✨"}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 800, color }}>
+                    {broken ? "Streak broken!" : `${days}-day streak`}
+                  </p>
+                  <p style={{ fontSize: 11.5, color, opacity: 0.8 }}>
+                    {broken
+                      ? "You missed a day. Open the app daily to keep your streak!"
+                      : days > 0
+                        ? "Keep the momentum going! 💪"
+                        : "Open the app every day to build a streak."}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Today's Schedule */}
         <section style={{ background: "#CCE6F4", borderRadius: 20, margin: "0 16px", padding: 16 }}>
           <h3 style={{ fontSize: 17, fontWeight: 800, color: "#175676", margin: "0 0 14px" }}>📋 Today&apos;s Schedule</h3>
-          {todaysMeals.length === 0 && todaysEvents.length === 0 ? (
+          {todaysMeals.length === 0 && todaysEvents.length === 0 && todaysVets.length === 0 && activeMeds.length === 0 ? (
             <p style={{ fontSize: 13, color: "#4BA3C3", textAlign: "center", padding: "10px 0" }}>
               Nothing scheduled yet. Add meals or events to see them here. 🗓️
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {todaysMeals.map((m) => (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: m.done ? "#D3FAC7" : "#FFFFFF", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                  <button onClick={() => toggleMealLog(m.petId, m.id, today)} style={{ width: 22, height: 22, border: `2px solid ${m.done ? "#2E8B40" : "#4BA3C3"}`, background: m.done ? "#2E8B40" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle meal">
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: m.done ? "#FDF2F8" : "#FFFFFF", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                  <button onClick={() => handleMealToggle(m.petId, m.id, m.done, m.petName, m.mealName)} style={{ width: 22, height: 22, border: `2px solid ${m.done ? "#F472B6" : "#4BA3C3"}`, background: m.done ? "#F472B6" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle meal">
                     {m.done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                   </button>
                   <span style={{ flex: 1, fontSize: 14, color: m.done ? "#4BA3C3" : "#175676", textDecoration: m.done ? "line-through" : "none" }}>{m.label}</span>
                   <span style={{ fontSize: 11.5, color: "#4BA3C3", fontWeight: 600 }}>{m.time}</span>
                 </div>
               ))}
-              {todaysEvents.map((e) => (
-                <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#E7F59E", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                  <span style={{ fontSize: 18 }}>{e.emoji || "📅"}</span>
-                  <span style={{ flex: 1, fontSize: 14, color: "#3A6B00", fontWeight: 600 }}>{e.title}</span>
-                </div>
-              ))}
+              {todaysEvents.map((e) => {
+                const done = doneItems.has(`event-${e.id}`);
+                const pet = pets.find((p) => p.id === e.petId);
+                return (
+                  <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: done ? "#FDF2F8" : "#FFF7ED", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <button onClick={() => handleToggleDone(`event-${e.id}`, () => fireEncouraging("🎉 Event done!", pick(EVENT_DONE)(pet?.name ?? "your pet", e.title)))} style={{ width: 22, height: 22, border: `2px solid ${done ? "#F472B6" : "#FDBA74"}`, background: done ? "#F472B6" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle event">
+                      {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </button>
+                    <span style={{ fontSize: 18 }}>{e.emoji || "📅"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#B45309", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{e.title}</span>
+                      {pet && <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{pet.name}</p>}
+                    </div>
+                    <span style={{ fontSize: 11.5, color: "#F59E0B", fontWeight: 600 }}>{e.allDay ? `All day${e.time ? ` · ${e.time}` : ""}` : (e.time || "All day")}</span>
+                  </div>
+                );
+              })}
+              {todaysVets.map((h) => {
+                const done = doneItems.has(`vet-${h.id}`);
+                const pet = pets.find((p) => p.id === h.petId);
+                return (
+                  <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: done ? "#FDF2F8" : "#DBEAFE", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <button onClick={() => handleToggleDone(`vet-${h.id}`, () => fireEncouraging("🩺 Vet visit done!", pick(VET_DONE)(pet?.name ?? "your pet")))} style={{ width: 22, height: 22, border: `2px solid ${done ? "#F472B6" : "#3B82F6"}`, background: done ? "#F472B6" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle vet">
+                      {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </button>
+                    <span style={{ fontSize: 18 }}>🩺</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#1D4ED8", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{h.title}</span>
+                      {pet && <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{pet.name}{h.detail ? ` · ${h.detail}` : ""}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+              {activeMeds.map((h) => {
+                const done = doneItems.has(`med-${h.id}`);
+                const pet = pets.find((p) => p.id === h.petId);
+                return (
+                  <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: done ? "#FDF2F8" : "#EDE9FE", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <button onClick={() => handleToggleDone(`med-${h.id}`, () => fireEncouraging("💊 Medication given!", pick(MED_DONE_MSG)(pet?.name ?? "your pet", h.title)))} style={{ width: 22, height: 22, border: `2px solid ${done ? "#F472B6" : "#7C3AED"}`, background: done ? "#F472B6" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle medication">
+                      {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </button>
+                    <span style={{ fontSize: 18 }}>💊</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#7C3AED", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{h.title}</span>
+                      {pet && <p style={{ fontSize: 11, color: "#8B5CF6", margin: 0 }}>{pet.name}{h.detail ? ` · ${h.detail}` : ""}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* All-done milestone */}
+          {allScheduleDone && (
+            <div className="pawzo-rise" style={{ marginTop: 14, background: "linear-gradient(135deg, #FFFBEB 0%, #FCE7F3 100%)", borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, border: "1.5px solid #FBD0E4" }}>
+              <span style={{ fontSize: 32 }}>🏆</span>
+              <div>
+                <p style={{ fontSize: 14.5, fontWeight: 800, color: "#7C3AED", margin: 0 }}>All done for today!</p>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>You crushed today&apos;s schedule. Your pets are so lucky! 🐾✨</p>
+              </div>
             </div>
           )}
         </section>
       </main>
 
-      <BottomNav alertCount={alerts.length} />
+      <BottomNav />
     </AppFrame>
   );
 }

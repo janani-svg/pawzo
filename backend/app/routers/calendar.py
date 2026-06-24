@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.db.database import get_db
 from app.models.models import User, Pet, CalendarEvent
 from app.schemas.schemas import CalendarEventCreate, CalendarEventUpdate, CalendarEventOut
@@ -23,10 +23,36 @@ async def list_events(
     pet_id: str,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    today: Optional[str] = None,       # client's local date  yyyy-mm-dd
+    now_hhmm: Optional[str] = None,    # client's local time  HH:MM
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await get_pet_or_404(pet_id, current_user, db)
+
+    # Auto-cleanup: erase events whose time period is over (use client's local date/time)
+    if today:
+        # Delete all non-all-day events from past days
+        await db.execute(
+            delete(CalendarEvent).where(
+                CalendarEvent.pet_id == pet_id,
+                CalendarEvent.date < today,
+                CalendarEvent.all_day == False,
+            )
+        )
+        # Delete today's timed events whose time has already passed (skip all-day events)
+        if now_hhmm:
+            await db.execute(
+                delete(CalendarEvent).where(
+                    CalendarEvent.pet_id == pet_id,
+                    CalendarEvent.date == today,
+                    CalendarEvent.time != "",
+                    CalendarEvent.time <= now_hhmm,
+                    CalendarEvent.all_day == False,
+                )
+            )
+        await db.commit()
+
     query = select(CalendarEvent).where(CalendarEvent.pet_id == pet_id).order_by(CalendarEvent.date)
     if from_date:
         query = query.where(CalendarEvent.date >= from_date)

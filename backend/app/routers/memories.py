@@ -3,11 +3,49 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.models.models import User, Pet, Memory
-from app.schemas.schemas import MemoryCreate, MemoryUpdate, MemoryOut
+from app.schemas.schemas import MemoryCreate, MemoryUpdate, MemoryOut, MoodDetectRequest, MoodDetectOut
 from app.auth import get_current_user
 from typing import List
+import os
 
 router = APIRouter()
+
+_MOODS = ["Happy", "Playful", "Anxious", "Sick", "Sleepy", "Affectionate",
+          "Curious", "Relaxed", "Angry", "Scared", "Hungry", "Energetic", "Excited"]
+
+
+@router.post("/detect-mood", response_model=MoodDetectOut)
+async def detect_mood(
+    body: MoodDetectRequest,
+    current_user: User = Depends(get_current_user),
+):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return MoodDetectOut(mood="Happy")
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=api_key)
+        context = f"This is a photo of {body.pet_name}, a {body.pet_species}." if body.pet_name else "This is a pet photo."
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=20,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": (
+                        f"{context} Determine the pet's current mood from this photo. "
+                        f"Choose exactly one word from this list: {', '.join(_MOODS)}. "
+                        "Respond with only that one word."
+                    )},
+                    {"type": "image_url", "image_url": {"url": body.photo_data_url, "detail": "low"}},
+                ],
+            }],
+        )
+        raw = response.choices[0].message.content.strip()
+        matched = next((m for m in _MOODS if m.lower() in raw.lower()), "Happy")
+        return MoodDetectOut(mood=matched)
+    except Exception:
+        return MoodDetectOut(mood="Happy")
 
 
 async def get_pet_or_404(pet_id: str, user: User, db: AsyncSession) -> Pet:

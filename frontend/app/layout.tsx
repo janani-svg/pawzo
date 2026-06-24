@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { PawzoProvider } from "./lib/store";
+import NotificationScheduler from "./components/NotificationScheduler";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,7 +33,10 @@ export default function RootLayout({
       className={`${inter.variable} ${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <PawzoProvider>{children}</PawzoProvider>
+        <PawzoProvider>
+          <NotificationScheduler />
+          {children}
+        </PawzoProvider>
       </body>
     </html>
   );

@@ -79,7 +79,10 @@ export default function SignupPage() {
               {agree && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
             </span>
             <span style={{ fontSize: 13, color: T.gray, lineHeight: 1.45 }}>
-              I agree to the <span style={{ color: T.pink, fontWeight: 700 }}>Terms of Service</span> & <span style={{ color: T.pink, fontWeight: 700 }}>Privacy Policy</span>.
+              I agree to the{" "}
+              <Link href="/terms?ref=signup" style={{ color: T.pink, fontWeight: 700, textDecoration: "none" }}>Terms of Service</Link>
+              {" & "}
+              <Link href="/privacy?ref=signup" style={{ color: T.pink, fontWeight: 700, textDecoration: "none" }}>Privacy Policy</Link>.
             </span>
           </label>
 

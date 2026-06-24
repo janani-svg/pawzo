@@ -23,10 +23,13 @@ export default function GrowthPage() {
   if (!ready || !authed) return null;
   if (!pet) { router.replace("/pet-profile/new"); return null; }
 
+  const unit = state.settings.units === "metric" ? "kg" : "lb";
+  const toDisplay = (kg: number) => state.settings.units === "imperial" ? +(kg * 2.205).toFixed(1) : kg;
+
   const weights = state.weights.filter((w) => w.petId === pet.id).sort((a, b) => a.date.localeCompare(b.date));
   const milestones = state.milestones.filter((m) => m.petId === pet.id).sort((a, b) => b.date.localeCompare(a.date));
   const first = weights[0]?.weight, last = weights[weights.length - 1]?.weight;
-  const delta = first != null && last != null ? (last - first) : null;
+  const displayDelta = first != null && last != null ? toDisplay(last) - toDisplay(first) : null;
 
   function save() {
     if (!title.trim()) return;
@@ -40,14 +43,14 @@ export default function GrowthPage() {
 
       <div style={{ padding: "8px 16px 0" }}>
         <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
-          <Stat label="Current weight" value={last != null ? `${last} kg` : "—"} delta={delta != null ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)} kg total` : "Log weight to track"} />
+          <Stat label="Current weight" value={last != null ? `${toDisplay(last)} ${unit}` : "—"} delta={displayDelta != null ? `${displayDelta >= 0 ? "+" : ""}${displayDelta.toFixed(1)} ${unit} total` : "Log weight to track"} />
           <Stat label="Logs" value={String(weights.length)} delta="weight entries" />
         </div>
 
         <SectionTitle action={<span style={{ fontSize: 11.5, fontWeight: 700, color: T.grayLight }}>From health logs</span>}>Weight over time</SectionTitle>
         <div style={{ background: "#BCF4F5", borderRadius: 18, padding: 16 }}>
           {weights.length >= 2 ? (
-            <Trend data={weights.map((w) => w.weight)} dates={weights.map((w) => w.date)} />
+            <Trend data={weights.map((w) => toDisplay(w.weight))} dates={weights.map((w) => w.date)} unit={unit} />
           ) : (
             <p style={{ fontSize: 13, color: "#175676", textAlign: "center", padding: "8px 0" }}>Log at least two weights in Health to see the growth curve. 📈</p>
           )}
@@ -107,8 +110,8 @@ function Stat({ label, value, delta }: { label: string; value: string; delta: st
     </div>
   );
 }
-function Trend({ data, dates }: { data: number[]; dates: string[] }) {
-  const w = 300, h = 130, padL = 32, padR = 8, padT = 8, padB = 28;
+function Trend({ data, dates, unit }: { data: number[]; dates: string[]; unit: string }) {
+  const w = 300, h = 140, padL = 32, padR = 8, padT = 8, padB = 36;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
   const min = Math.min(...data), max = Math.max(...data), range = max - min || 1;
@@ -129,7 +132,7 @@ function Trend({ data, dates }: { data: number[]; dates: string[] }) {
         return (
           <g key={i}>
             <line x1={padL - 3} y1={y} x2={padL} y2={y} stroke="#4BA3C3" strokeWidth="1" opacity="0.5" />
-            <text x={padL - 5} y={y + 3} fontSize="7" fill="#4BA3C3" textAnchor="end">{v.toFixed(1)}</text>
+            <text x={padL - 5} y={y + 3} fontSize="7" fill="#4BA3C3" textAnchor="end">{v.toFixed(1)} {unit}</text>
           </g>
         );
       })}
@@ -150,8 +153,8 @@ function Trend({ data, dates }: { data: number[]; dates: string[] }) {
       ))}
       {/* x-axis date labels */}
       {labelIdx.filter((i) => i < dates.length).map((i) => (
-        <text key={i} x={pts[i][0]} y={h - 4} fontSize="8" fill="#4BA3C3" textAnchor="middle">
-          {dates[i]?.slice(5)}
+        <text key={i} x={pts[i][0]} y={h - 4} fontSize="7.5" fill="#4BA3C3" textAnchor="middle">
+          {new Date(dates[i] + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
         </text>
       ))}
     </svg>

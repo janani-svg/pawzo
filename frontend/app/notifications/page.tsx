@@ -116,13 +116,7 @@ export default function NotificationsPage() {
   const allAlerts = deriveAlerts(state);
   const alerts = [...allAlerts]
     .filter((a) => !dismissed.has(a.id))
-    .sort((a, b) => {
-      // Completed alerts (user actions: fed, given, done) always rise above reminders
-      const aComp = a.status === "completed" ? 0 : 1;
-      const bComp = b.status === "completed" ? 0 : 1;
-      if (aComp !== bComp) return aComp - bComp;
-      return b.sortTime - a.sortTime;
-    });
+    .sort((a, b) => b.sortTime - a.sortTime);
   const unreadCount = alerts.filter((a) => !readIds.has(a.id)).length;
 
   useEffect(() => {
@@ -181,23 +175,6 @@ export default function NotificationsPage() {
                 </div>
               );
             })}
-            {(() => {
-              const currentIds = new Set(allAlerts.map(a => a.id));
-              const earlier = (state.pastAlerts ?? [])
-                .filter(a => !currentIds.has(a.id) && !dismissed.has(a.id))
-                .sort((a, b) => b.sortTime - a.sortTime);
-              if (!earlier.length) return null;
-              return (
-                <div style={{ marginBottom: 8 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: T.grayLight, letterSpacing: 0.6, margin: "8px 2px 8px" }}>EARLIER THIS WEEK</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {earlier.map(n => (
-                      <AlertCard key={n.id} n={n} isRead={readIds.has(n.id)} onRead={() => markRead(n.id)} onDismiss={dismiss} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
           </>
         )}
       </div>

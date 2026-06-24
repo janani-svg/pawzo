@@ -22,10 +22,15 @@ class UserOut(BaseModel):
     name: str
     username: str
     email: str
-    email_verified: bool
+    email_verified: bool = False
+    photo_url: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserProfileUpdate(BaseModel):
+    photo_url: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -270,12 +275,22 @@ class MemoryCreate(BaseModel):
     photo_url: str = ""
     caption: str = ""
     date: str
+    title: str = ""
+    mood: str = ""
+    tags: str = ""
+    media_type: str = "photo"
+    time_taken: str = ""
 
 
 class MemoryUpdate(BaseModel):
     photo_url: Optional[str] = None
     caption: Optional[str] = None
     date: Optional[str] = None
+    title: Optional[str] = None
+    mood: Optional[str] = None
+    tags: Optional[str] = None
+    media_type: Optional[str] = None
+    time_taken: Optional[str] = None
 
 
 class MemoryOut(BaseModel):
@@ -284,8 +299,23 @@ class MemoryOut(BaseModel):
     photo_url: str
     caption: str
     date: str
+    title: str = ""
+    mood: str = ""
+    tags: str = ""
+    media_type: str = "photo"
+    time_taken: str = ""
 
     model_config = {"from_attributes": True}
+
+
+class MoodDetectRequest(BaseModel):
+    photo_data_url: str
+    pet_name: str = ""
+    pet_species: str = ""
+
+
+class MoodDetectOut(BaseModel):
+    mood: str
 
 
 # ── Calendar Events ───────────────────────────────────────────────────────────
@@ -293,12 +323,16 @@ class MemoryOut(BaseModel):
 class CalendarEventCreate(BaseModel):
     title: str
     date: str
+    time: str = ""
+    all_day: bool = False
     emoji: str = ""
 
 
 class CalendarEventUpdate(BaseModel):
     title: Optional[str] = None
     date: Optional[str] = None
+    time: Optional[str] = None
+    all_day: Optional[bool] = None
     emoji: Optional[str] = None
 
 
@@ -307,6 +341,8 @@ class CalendarEventOut(BaseModel):
     pet_id: str
     title: str
     date: str
+    time: str = ""
+    all_day: bool = False
     emoji: str
 
     model_config = {"from_attributes": True}

@@ -60,11 +60,45 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(401, "Invalid credentials")
 
+    if user.deletion_requested_at:
+        days_elapsed = (datetime.utcnow() - user.deletion_requested_at).days
+        if days_elapsed >= 30:
+            await db.delete(user)
+            await db.commit()
+            raise HTTPException(401, "Invalid credentials")
+        days_to_cancel = max(0, 7 - days_elapsed)
+        days_to_delete = max(0, 30 - days_elapsed)
+        raise HTTPException(403, f"PENDING_DELETION:{days_to_cancel}:{days_to_delete}")
+
     return {
         "access_token": create_token(user.id),
         "token_type": "bearer",
         "user": user,
     }
+
+
+@router.post("/cancel-deletion", response_model=TokenResponse)
+async def cancel_deletion(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    identifier = body.identifier.lower()
+    result = await db.execute(
+        select(User).where((User.email == identifier) | (User.username == identifier))
+    )
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+    if not user.deletion_requested_at:
+        raise HTTPException(400, "No deletion request found")
+
+    days_elapsed = (datetime.utcnow() - user.deletion_requested_at).days
+    if days_elapsed >= 7:
+        raise HTTPException(403, "Cancellation window has expired")
+
+    user.deletion_requested_at = None
+    await db.commit()
+    await db.refresh(user)
+    return {"access_token": create_token(user.id), "token_type": "bearer", "user": user}
 
 
 @router.get("/me", response_model=UserOut)

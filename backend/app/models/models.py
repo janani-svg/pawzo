@@ -12,12 +12,14 @@ def new_id() -> str:
 class User(Base):
     __tablename__ = "users"
 
-    id            = Column(String, primary_key=True, default=new_id)
-    name          = Column(String, nullable=False)
-    username      = Column(String, unique=True, nullable=False)
-    email         = Column(String, unique=True, nullable=False)
-    password_hash = Column(String, nullable=False)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    id                    = Column(String, primary_key=True, default=new_id)
+    name                  = Column(String, nullable=False)
+    username              = Column(String, unique=True, nullable=False)
+    email                 = Column(String, unique=True, nullable=False)
+    password_hash         = Column(String, nullable=False)
+    photo_url             = Column(Text, default="")
+    created_at            = Column(DateTime, default=datetime.utcnow)
+    deletion_requested_at = Column(DateTime, nullable=True)
 
     email_verified            = Column(Boolean, default=False, nullable=False)
     verification_code         = Column(String, nullable=True)
@@ -81,7 +83,7 @@ class MealLog(Base):
     meal_id = Column(String, ForeignKey("meals.id", ondelete="CASCADE"), nullable=False)
     date    = Column(String, nullable=False)
     done    = Column(Boolean, default=False)
-    fed_at  = Column(Integer, nullable=True)  # epoch ms when meal was marked fed
+    fed_at  = Column(BigInteger, nullable=True)  # epoch ms when meal was marked fed
 
     pet  = relationship("Pet", back_populates="meal_logs")
     meal = relationship("Meal", back_populates="meal_logs")
@@ -155,11 +157,16 @@ class Milestone(Base):
 class Memory(Base):
     __tablename__ = "memories"
 
-    id        = Column(String, primary_key=True, default=new_id)
-    pet_id    = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=False)
-    photo_url = Column(Text, default="")
-    caption   = Column(Text, default="")
-    date      = Column(String, nullable=False)
+    id         = Column(String, primary_key=True, default=new_id)
+    pet_id     = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=False)
+    photo_url  = Column(Text, default="")
+    caption    = Column(Text, default="")
+    date       = Column(String, nullable=False)
+    title      = Column(String, default="")
+    mood       = Column(String, default="")
+    tags       = Column(Text, default="")
+    media_type = Column(String, default="photo")
+    time_taken = Column(String, default="")
 
     pet = relationship("Pet", back_populates="memories")
 
@@ -167,11 +174,13 @@ class Memory(Base):
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
-    id     = Column(String, primary_key=True, default=new_id)
-    pet_id = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=False)
-    title  = Column(String, nullable=False)
-    date   = Column(String, nullable=False)
-    emoji  = Column(String, default="")
+    id      = Column(String, primary_key=True, default=new_id)
+    pet_id  = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=False)
+    title   = Column(String, nullable=False)
+    date    = Column(String, nullable=False)
+    time    = Column(String, default="")
+    all_day = Column(Boolean, default=False)
+    emoji   = Column(String, default="")
 
     pet = relationship("Pet", back_populates="events")
 
