@@ -29,9 +29,9 @@ export default function VerifyPage() {
 
   const code = digits.join("");
 
-  /* If already verified, skip straight to onboarding. */
+  /* If already verified, skip straight to dashboard. */
   useEffect(() => {
-    if (ready && authed && state.emailVerified) router.replace("/onboarding");
+    if (ready && authed && state.emailVerified) router.replace("/dashboard");
   }, [ready, authed, state.emailVerified, router]);
 
   /* Send a code automatically the first time the page is ready. */
@@ -97,7 +97,7 @@ export default function VerifyPage() {
       inputs.current[0]?.focus();
       return;
     }
-    router.push("/onboarding");
+    router.push("/dashboard");
   }
 
   if (!ready) return null;
