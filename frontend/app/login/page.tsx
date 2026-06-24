@@ -11,11 +11,12 @@ import { usePawzo } from "../lib/store";
 
 /* ---------------------------------------------------------------- pet mosaic */
 const PETS = [
-  { id: "dog",    src: "/pets/dog.jpg",bg: "#FFDDC8", area: "dog",    delay: "0s" },
-  { id: "cat",    src: "/pets/cat.jpg",    bg: "#BCF4F5", area: "cat",    delay: "0.6s" },
-  { id: "parrot", src: "/pets/par.jpg", bg: "#B4EBCA", area: "par", delay: "1.1s" },
-  { id: "rabbit", src: "/pets/bunny.jpg", bg: "#FFE8F4", area: "bunny", delay: "0.4s" },
-  { id: "fish",   src: "/pets/ch.jpg",   bg: "#0A3A58", area: "ch",   delay: "1.5s" },
+  { id: "dog",     src: "/pets/dog.jpg",     bg: "#FFDDC8", area: "dog",   delay: "0s" },
+  { id: "cat",     src: "/pets/cat.jpg",     bg: "#BCF4F5", area: "cat",   delay: "0.6s" },
+  { id: "parrot",  src: "/pets/par.jpg",     bg: "#B4EBCA", area: "par",   delay: "1.1s" },
+  { id: "rabbit",  src: "/pets/bunny.jpg",   bg: "#FFE8F4", area: "bunny", delay: "0.4s" },
+  { id: "fish",    src: "/pets/ch.jpg",      bg: "#0A3A58", area: "ch",    delay: "1.5s" },
+  { id: "hamster", src: "/pets/hamster.jpg", bg: "#FBEAD7", area: "ham",   delay: "0.9s" },
 ];
 
 export default function LoginPage() {
@@ -34,7 +35,6 @@ export default function LoginPage() {
   const [fMsg,     setFMsg]     = useState("");
   const [fErr,     setFErr]     = useState("");
 
-<<<<<<< HEAD
   const [loginLoading, setLoginLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -44,13 +44,6 @@ export default function LoginPage() {
     setLoginLoading(true);
     const r = await login(id.trim(), pw);
     setLoginLoading(false);
-=======
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (!id.trim() || !pw) { setError("Please enter your details to continue."); return; }
-    const r = login(id.trim(), pw);
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
     if (!r.ok) { setError(r.error ?? "Could not log in."); return; }
     router.push("/dashboard");
   }
@@ -63,50 +56,51 @@ export default function LoginPage() {
     if (fPw !== fConfirm) { setFErr("Passwords don't match yet."); return; }
     const r = resetPassword(fEmail.trim(), fPw);
     if (!r.ok) { setFErr(r.error ?? "Could not reset."); return; }
-<<<<<<< HEAD
     setFMsg("Password reset coming soon — contact support.");
-=======
-    setFMsg("Password updated! You can log in now. 🎉");
-    setTimeout(() => { setMode("login"); setId(fEmail.trim()); setPw(""); }, 1400);
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
   }
 
   return (
-    <div style={{ minHeight: "100dvh", background: "#FFFFFF", display: "flex", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: T.maxW, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100dvh", background: "var(--p-bg)", display: "flex", justifyContent: "center" }}>
+      <div className="pawzo-paws" style={{ width: "100%", maxWidth: T.maxW, display: "flex", flexDirection: "column", backgroundColor: "var(--p-bg)" }}>
 
         {/* ─── pet mosaic ─────────────────────────────────── */}
         <div style={{
+          position: "relative",
           display: "grid",
-          gridTemplateAreas: `"dog cat" "dog par" "bunny ch"`,
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "repeat(3, 88px)",
-          gap: 5,
-          padding: "10px 10px 0",
-          borderRadius: "0 0 28px 28px",
+          gridTemplateAreas: `"dog dog cat" "dog dog par" "bunny ch ham"`,
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateRows: "repeat(3, 1fr)",
+          aspectRatio: "1 / 1",
+          gap: 0,
+          padding: 0,
+          borderRadius: 0,
           overflow: "hidden",
         }}>
           {PETS.map((p) => (
             <div
               key={p.id}
-              className="pawzo-zoom"
               style={{
                 gridArea: p.area,
                 background: p.bg,
-                borderRadius: 18,
+                borderRadius: 0,
                 overflow: "hidden",
-                animationDelay: p.delay,
-                animationDuration: "5s",
+                margin: -0.75, // overlap neighbors by ~1.5px to cover sub-pixel grid seams
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.src}
                 alt={p.id}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                className="pawzo-zoom"
+                style={{
+                  width: "100%", height: "100%", objectFit: "cover", display: "block",
+                  animationDelay: p.delay, animationDuration: "5s",
+                }}
               />
             </div>
           ))}
+          {/* foggy bottom fade — melts the images into the page so the mosaic reads as a soft backdrop */}
+          <div className="pawzo-fog" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", pointerEvents: "none" }} />
         </div>
 
         {/* ─── form area ──────────────────────────────────── */}
@@ -167,13 +161,8 @@ export default function LoginPage() {
 
                 {error && <ErrorBox>{error}</ErrorBox>}
 
-<<<<<<< HEAD
                 <PrimaryButton full type="submit" disabled={loginLoading} style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
                   {loginLoading ? "Logging in…" : "Login 🐾"}
-=======
-                <PrimaryButton full type="submit" style={{ height: 52, fontSize: 16, borderRadius: 26 }}>
-                  Login 🐾
->>>>>>> 419b4517eb8f9b3db2727063d63a0e0145492b05
                 </PrimaryButton>
               </form>
 

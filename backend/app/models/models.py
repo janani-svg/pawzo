@@ -19,6 +19,10 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     created_at    = Column(DateTime, default=datetime.utcnow)
 
+    email_verified            = Column(Boolean, default=False, nullable=False)
+    verification_code         = Column(String, nullable=True)
+    verification_code_expires = Column(DateTime, nullable=True)
+
     pets          = relationship("Pet", back_populates="owner", cascade="all, delete-orphan")
     vet           = relationship("Vet", back_populates="owner", uselist=False, cascade="all, delete-orphan")
     settings      = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")

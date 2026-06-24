@@ -38,6 +38,10 @@ export const authApi = {
     post<{ access_token: string; token_type: string; user: ApiUser }>("/auth/login", data),
 
   me: () => get<ApiUser>("/auth/me"),
+
+  sendVerification: () => post<{ message: string }>("/auth/send-verification"),
+
+  verifyEmail: (code: string) => post<ApiUser>("/auth/verify-email", { code }),
 };
 
 /* ── Pets ───────────────────────────────────────────────────────────────── */
@@ -138,7 +142,7 @@ export const userApi = {
 
 /* ── API shape types (snake_case — match FastAPI schemas) ───────────────── */
 export interface ApiUser {
-  id: string; name: string; username: string; email: string; created_at: string;
+  id: string; name: string; username: string; email: string; email_verified: boolean; created_at: string;
 }
 export interface ApiPet {
   id: string; owner_id: string; name: string; species: string; breed: string;

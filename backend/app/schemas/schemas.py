@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     name: str
     username: str
     email: str
+    email_verified: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -31,6 +32,14 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserOut
+
+
+class VerifyEmailRequest(BaseModel):
+    code: str
+
+
+class MessageResponse(BaseModel):
+    message: str
 
 
 # ── Pets ──────────────────────────────────────────────────────────────────────
