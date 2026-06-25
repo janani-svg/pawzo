@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.models.models import User, Pet, ChatMessage
-from app.schemas.schemas import ChatSend, ChatMessageOut, ChatResponse, MessageResponse
+from app.schemas.schemas import (
+    ChatSend, ChatMessageOut, ChatResponse, MessageResponse,
+    MealSuggestionRequest, MealSuggestionItem, MealSuggestionsOut,
+)
 from app.auth import get_current_user
 from typing import List, Optional
 import os
+import json
 import asyncio
 import logging
 
@@ -144,6 +148,86 @@ def _fallback_reply(text: str, pet: Optional[Pet]) -> str:
     if re.search(r"emergency|hurt|bleeding|vomit|sick|ill", s):
         return f"{lead}If this is urgent, open the Emergency screen to call your vet now. Keep {pet_name} calm and warm while you reach help."
     return f"{lead}I'm having trouble connecting right now. Please try again in a moment 🐾"
+
+
+_MEAL_FALLBACK: dict[str, list[dict]] = {
+    "Dog": [
+        {"name": "Morning Bowl",    "food": "Dry kibble with warm water",    "time": "08:00", "kcal": 300, "reason": "Complete balanced nutrition to start the day."},
+        {"name": "Midday Snack",    "food": "Boiled chicken & carrot sticks","time": "13:00", "kcal": 100, "reason": "Lean protein keeps energy steady between meals."},
+        {"name": "Evening Dinner",  "food": "Wet food with rice & veggies",  "time": "18:30", "kcal": 350, "reason": "High-moisture meal aids digestion overnight."},
+    ],
+    "Cat": [
+        {"name": "Morning Feed",    "food": "Wet cat food with tuna",        "time": "08:00", "kcal": 180, "reason": "Cats need high animal protein; wet food boosts hydration."},
+        {"name": "Afternoon Bite",  "food": "Dry kibble (measured portion)",  "time": "14:00", "kcal": 120, "reason": "Crunchy kibble supports dental health."},
+        {"name": "Evening Meal",    "food": "Wet food with chicken & gravy", "time": "19:00", "kcal": 180, "reason": "Aromatic wet meal appeals to picky eaters at night."},
+    ],
+    "Bird": [
+        {"name": "Breakfast Seeds", "food": "Mixed seed & millet spray",     "time": "07:30", "kcal": 60,  "reason": "Seeds provide essential fatty acids for feather health."},
+        {"name": "Lunch Veggies",   "food": "Chopped leafy greens & carrot", "time": "12:00", "kcal": 30,  "reason": "Fresh vegetables supply vitamins A and K."},
+        {"name": "Evening Pellets", "food": "Fortified pelleted diet",        "time": "17:00", "kcal": 70,  "reason": "Pellets ensure complete mineral intake."},
+    ],
+    "Rabbit": [
+        {"name": "Morning Hay",     "food": "Unlimited timothy hay",         "time": "08:00", "kcal": 50,  "reason": "Hay must be 70% of diet for healthy gut motility."},
+        {"name": "Midday Greens",   "food": "Romaine, parsley & herbs",      "time": "12:00", "kcal": 20,  "reason": "Leafy greens provide moisture and vitamins."},
+        {"name": "Evening Pellets", "food": "Plain rabbit pellets (50g)",    "time": "18:00", "kcal": 130, "reason": "Measured pellets prevent obesity in house rabbits."},
+    ],
+}
+_MEAL_FALLBACK_DEFAULT = [
+    {"name": "Morning Feed",   "food": "Species-appropriate staple food", "time": "08:00", "kcal": 200, "reason": "Consistent morning feeding builds routine."},
+    {"name": "Midday Snack",   "food": "Fresh vegetables or fruit",       "time": "13:00", "kcal": 80,  "reason": "Natural treats add enrichment and nutrients."},
+    {"name": "Evening Meal",   "food": "Protein-rich evening portion",    "time": "18:30", "kcal": 220, "reason": "Larger evening meal supports overnight energy needs."},
+]
+
+
+@router.post("/chat/meal-suggestions", response_model=MealSuggestionsOut)
+async def suggest_meals(
+    body: MealSuggestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Pet).where(Pet.id == body.pet_id, Pet.owner_id == current_user.id)
+    )
+    pet = result.scalar_one_or_none()
+    if not pet:
+        raise HTTPException(404, "Pet not found")
+
+    region = body.region or pet.region or "your region"
+    breed_str = f" ({pet.breed})" if pet.breed else ""
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        try:
+            client = AsyncOpenAI(api_key=api_key)
+            prompt = (
+                f"Suggest exactly 3 daily meal options for {pet.name}, a {pet.species}{breed_str}. "
+                f"The owner lives in {region} — use ingredients commonly available there. "
+                f"Return a JSON object with a 'suggestions' array of exactly 3 items. "
+                f"Each item must have: name (2-4 words), food (specific ingredients, max 8 words), "
+                f"time (HH:MM 24h), kcal (realistic integer for a {pet.species}), "
+                f"reason (one sentence explaining why this suits a {pet.species} in {region})."
+            )
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a certified pet nutritionist. Return valid JSON only, no markdown fences."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=600,
+                temperature=0.8,
+            )
+            raw = response.choices[0].message.content.strip()
+            parsed = json.loads(raw)
+            items = [MealSuggestionItem(**s) for s in parsed.get("suggestions", [])[:3]]
+            if items:
+                return MealSuggestionsOut(suggestions=items)
+        except Exception as exc:
+            log.error("Meal suggestions OpenAI error: %s", exc)
+
+    # Fallback: species-based hardcoded plan
+    raw_list = _MEAL_FALLBACK.get(pet.species, _MEAL_FALLBACK_DEFAULT)
+    return MealSuggestionsOut(suggestions=[MealSuggestionItem(**m) for m in raw_list])
 
 
 @router.get("/chat/history", response_model=List[ChatMessageOut])

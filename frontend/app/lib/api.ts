@@ -143,6 +143,12 @@ export const chatApi = {
     del(`/user/chat/history${pet_id ? `?pet_id=${pet_id}` : ""}`),
 };
 
+/* ── Meal Suggestions ───────────────────────────────────────────────────────── */
+export const mealSuggestApi = {
+  suggest: (pet_id: string, region: string) =>
+    post<{ suggestions: ApiMealSuggestion[] }>("/user/chat/meal-suggestions", { pet_id, region }),
+};
+
 /* ── Documents ──────────────────────────────────────────────────────────── */
 export const documentsApi = {
   list:   () => get<ApiDocument[]>("/user/documents"),
@@ -191,6 +197,9 @@ export interface ApiPet {
 }
 export interface ApiMeal {
   id: string; pet_id: string; name: string; time: string; food: string; kcal: number;
+}
+export interface ApiMealSuggestion {
+  name: string; food: string; time: string; kcal: number; reason: string;
 }
 export interface ApiMealLog {
   id: string; pet_id: string; meal_id: string; date: string; done: boolean;

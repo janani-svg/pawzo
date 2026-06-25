@@ -403,6 +403,25 @@ class SettingsOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Meal Suggestions ──────────────────────────────────────────────────────────
+
+class MealSuggestionRequest(BaseModel):
+    pet_id: str
+    region: str = ""
+
+
+class MealSuggestionItem(BaseModel):
+    name: str
+    food: str
+    time: str
+    kcal: int
+    reason: str
+
+
+class MealSuggestionsOut(BaseModel):
+    suggestions: list[MealSuggestionItem]
+
+
 # ── Alert Records ─────────────────────────────────────────────────────────────
 
 class AlertRecordIn(BaseModel):
