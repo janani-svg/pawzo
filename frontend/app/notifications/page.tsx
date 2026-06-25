@@ -1,32 +1,12 @@
 "use client";
 
 /* PAWZO Notifications — real alerts derived from the store. Latest first,
-   swipe left to dismiss, personality-driven messages, Web Audio chime. */
+   swipe left to dismiss, personality-driven messages. Sound handled globally
+   by SoundProvider. */
 
 import { useState, useEffect, useRef } from "react";
 import { AppFrame, BottomNav, TopBar, T } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, deriveAlerts, getReadAlertIds, markAlertsRead, type Alert } from "../lib/store";
-
-function playCutePetSound() {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const freqs = [523.25, 659.25, 783.99, 1046.5];
-    freqs.forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t0 = ctx.currentTime + i * 0.13;
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(0.22, t0 + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
-      osc.start(t0);
-      osc.stop(t0 + 0.5);
-    });
-  } catch { /* no AudioContext */ }
-}
 
 /* ── Swipeable row — swipe left ≥ 80 px to dismiss ───────────────────── */
 function SwipeableRow({ id, onDismiss, children }: { id: string; onDismiss: (id: string) => void; children: React.ReactNode }) {
@@ -111,19 +91,12 @@ export default function NotificationsPage() {
   const { state } = usePawzo();
   const [readIds,   setReadIds]   = useState<Set<string>>(() => getReadAlertIds());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const prevCountRef = useRef(0);
 
   const allAlerts = deriveAlerts(state);
   const alerts = [...allAlerts]
     .filter((a) => !dismissed.has(a.id))
     .sort((a, b) => b.sortTime - a.sortTime);
   const unreadCount = alerts.filter((a) => !readIds.has(a.id)).length;
-
-  useEffect(() => {
-    if (unreadCount > 0 && prevCountRef.current === 0 && state.settings.sound) playCutePetSound();
-    prevCountRef.current = unreadCount;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const ids = allAlerts.map((a) => a.id);

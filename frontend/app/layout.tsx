@@ -3,6 +3,7 @@ import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { PawzoProvider } from "./lib/store";
 import NotificationScheduler from "./components/NotificationScheduler";
+import { SoundProvider } from "./components/sound-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <PawzoProvider>
           <NotificationScheduler />
+          <SoundProvider />
           {children}
         </PawzoProvider>
       </body>
