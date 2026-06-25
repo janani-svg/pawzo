@@ -11,7 +11,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React from "react";
+import React, { useMemo } from "react";
+import { usePawzo, deriveAlerts, getReadAlertIds } from "../lib/store";
 
 /* ----------------------------------------------------------------- tokens */
 export const T = {
@@ -377,8 +378,18 @@ const NAV = [
   { href: "/profile",       label: "Profile", icon: IconUser,     tint: "#DBF3E3", ink: "#1F7A47" },
 ] as const;
 
-export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
+export function BottomNav() {
   const path = usePathname();
+  const { state } = usePawzo();
+  // Re-read localStorage on every navigation (path change) so badge clears
+  // immediately after the user visits the notifications page.
+  const unreadCount = useMemo(() => {
+    const alerts = deriveAlerts(state);
+    const readIds = getReadAlertIds();
+    return alerts.filter((a) => !readIds.has(a.id)).length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, state]);
+
   return (
     <nav
       style={{
@@ -393,9 +404,9 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
         display: "flex",
         justifyContent: "space-around",
         alignItems: "center",
-        padding: "9px 0 max(12px, env(safe-area-inset-bottom))",
+        padding: "8px 8px max(14px, env(safe-area-inset-bottom))",
         zIndex: 100,
-        boxShadow: "0 -4px 20px rgba(0,0,0,0.05)",
+        boxShadow: "0 -2px 16px rgba(0,0,0,0.06)",
       }}
     >
       {NAV.map((item) => {
@@ -409,10 +420,11 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 3,
+              gap: 4,
               textDecoration: "none",
               position: "relative",
-              padding: "2px 14px",
+              padding: "2px 12px",
+              minWidth: 64,
             }}
           >
             <div style={{ position: "relative" }}>
@@ -434,27 +446,27 @@ export function BottomNav({ alertCount = 0 }: { alertCount?: number }) {
               >
                 <Icon color={item.ink} />
               </div>
-              {item.href === "/notifications" && alertCount > 0 && (
+              {item.href === "/notifications" && unreadCount > 0 && (
                 <span
                   style={{
                     position: "absolute",
-                    top: 2,
-                    right: 2,
+                    top: 3,
+                    right: 3,
                     minWidth: 16,
                     height: 16,
                     padding: "0 3px",
                     borderRadius: 8,
-                    background: T.pink,
+                    background: "#FF3B30",
                     color: "#fff",
                     fontSize: 9,
                     fontWeight: 800,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    border: "1.5px solid var(--p-surface)",
+                    border: "1.5px solid var(--p-nav)",
                   }}
                 >
-                  {alertCount}
+                  {unreadCount}
                 </span>
               )}
             </div>

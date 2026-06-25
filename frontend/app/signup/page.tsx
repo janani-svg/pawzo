@@ -18,10 +18,12 @@ export default function SignupPage() {
   const [form, setForm] = useState({ name: "", username: "", email: "", pw: "", confirm: "" });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [serverError, setServerError] = useState("");
+  const [serverFieldError, setServerFieldError] = useState<{ field: string; msg: string } | null>(null);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
     setServerError("");
+    setServerFieldError(null);
   };
   const blur = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
 
@@ -43,7 +45,17 @@ export default function SignupPage() {
     setLoading(true);
     const r = await register({ name: form.name.trim(), username: form.username.trim(), email: form.email.trim(), password: form.pw });
     setLoading(false);
-    if (!r.ok) { setServerError(r.error ?? "Could not create account."); return; }
+    if (!r.ok) {
+      const msg = r.error ?? "Could not create account.";
+      if (msg.toLowerCase().includes("username")) {
+        setServerFieldError({ field: "username", msg: "Username already exists." });
+      } else if (msg.toLowerCase().includes("email")) {
+        setServerFieldError({ field: "email", msg: "Email already registered." });
+      } else {
+        setServerError(msg);
+      }
+      return;
+    }
     router.push("/verify");
   }
 
@@ -61,11 +73,11 @@ export default function SignupPage() {
           <FieldRow label="Full name" error={touched.name ? errors.name : ""}>
             <input style={inp(touched.name && errors.name)} placeholder="Buddy" value={form.name} onChange={set("name")} onBlur={blur("name")} />
           </FieldRow>
-          <FieldRow label="Username" error={touched.username ? errors.username : ""}>
-            <input style={inp(touched.username && errors.username)} placeholder="buddy_143" value={form.username} onChange={set("username")} onBlur={blur("username")} />
+          <FieldRow label="Username" error={touched.username ? errors.username : (serverFieldError?.field === "username" ? serverFieldError.msg : "")}>
+            <input style={inp((touched.username && errors.username) || (serverFieldError?.field === "username" ? "err" : ""))} placeholder="buddy_143" value={form.username} onChange={set("username")} onBlur={blur("username")} />
           </FieldRow>
-          <FieldRow label="Email" error={touched.email ? errors.email : ""}>
-            <input style={inp(touched.email && errors.email)} type="email" placeholder="buddy@gmail.com" value={form.email} onChange={set("email")} onBlur={blur("email")} />
+          <FieldRow label="Email" error={touched.email ? errors.email : (serverFieldError?.field === "email" ? serverFieldError.msg : "")}>
+            <input style={inp((touched.email && errors.email) || (serverFieldError?.field === "email" ? "err" : ""))} type="email" placeholder="buddy@gmail.com" value={form.email} onChange={set("email")} onBlur={blur("email")} />
           </FieldRow>
           <FieldRow label="Create password" error={touched.pw ? errors.pw : ""}>
             <input style={inp(touched.pw && errors.pw)} type="password" placeholder="At least 8 characters" value={form.pw} onChange={set("pw")} onBlur={blur("pw")} />
@@ -79,7 +91,10 @@ export default function SignupPage() {
               {agree && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
             </span>
             <span style={{ fontSize: 13, color: T.gray, lineHeight: 1.45 }}>
-              I agree to the <span style={{ color: T.pink, fontWeight: 700 }}>Terms of Service</span> & <span style={{ color: T.pink, fontWeight: 700 }}>Privacy Policy</span>.
+              I agree to the{" "}
+              <Link href="/terms?ref=signup" style={{ color: T.pink, fontWeight: 700, textDecoration: "none" }}>Terms of Service</Link>
+              {" & "}
+              <Link href="/privacy?ref=signup" style={{ color: T.pink, fontWeight: 700, textDecoration: "none" }}>Privacy Policy</Link>.
             </span>
           </label>
 

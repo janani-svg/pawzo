@@ -21,6 +21,9 @@ export default function HealthPage() {
   if (!ready || !authed) return null;
   if (!pet) { router.replace("/pet-profile/new"); return null; }
 
+  const unit = state.settings.units === "metric" ? "kg" : "lb";
+  const toDisplay = (kg: number) => state.settings.units === "imperial" ? +(kg * 2.205).toFixed(1) : kg;
+
   const vaccines = state.vaccinations.filter((v) => v.petId === pet.id).sort((a, b) => (a.nextDue || "").localeCompare(b.nextDue || ""));
   const weights = state.weights.filter((w) => w.petId === pet.id).sort((a, b) => a.date.localeCompare(b.date));
   const vets = state.health.filter((h) => h.petId === pet.id && h.kind === "vet").sort((a, b) => b.date.localeCompare(a.date));
@@ -50,17 +53,17 @@ export default function HealthPage() {
 
         {/* weight */}
         <SectionTitle action={<AddChip onClick={() => setForm({ kind: "weight" })} label="Log weight" />}>Weight matrix</SectionTitle>
-        {form?.kind === "weight" && <WeightForm onCancel={() => setForm(null)} onSave={(d) => { add("weights", { ...d, petId: pet.id }); setForm(null); }} />}
+        {form?.kind === "weight" && <WeightForm unit={unit} onCancel={() => setForm(null)} onSave={(d) => { add("weights", { ...d, petId: pet.id }); setForm(null); }} />}
         <div style={{ background: "var(--p-surface)", borderRadius: 18, padding: 16, boxShadow: T.shadowSoft }}>
           {weights.length === 0 ? (
             <p style={{ fontSize: 13, color: T.grayLight, textAlign: "center" }}>No weight logged yet. Tap “Log weight”.</p>
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 26, fontWeight: 800, color: T.ink }}>{latest}</span>
-                <span style={{ fontSize: 13, color: T.gray, fontWeight: 600 }}>kg latest</span>
+                <span style={{ fontSize: 26, fontWeight: 800, color: T.ink }}>{latest != null ? toDisplay(latest) : "—"}</span>
+                <span style={{ fontSize: 13, color: T.gray, fontWeight: 600 }}>{unit} latest</span>
               </div>
-              {weights.length >= 2 ? <WeightChart data={weights.map((w) => w.weight)} /> : <p style={{ fontSize: 12, color: T.grayLight }}>Log one more to see the trend chart.</p>}
+              {weights.length >= 2 ? <WeightChart data={weights.map((w) => toDisplay(w.weight))} dates={weights.map((w) => w.date)} /> : <p style={{ fontSize: 12, color: T.grayLight }}>Log one more to see the trend chart.</p>}
             </>
           )}
         </div>
@@ -105,12 +108,12 @@ function VaccineForm({ onSave, onCancel }: { onSave: (d: { name: string; date: s
     </FormCard>
   );
 }
-function WeightForm({ onSave, onCancel }: { onSave: (d: { weight: number; date: string; note: string }) => void; onCancel: () => void }) {
+function WeightForm({ unit, onSave, onCancel }: { unit: string; onSave: (d: { weight: number; date: string; note: string }) => void; onCancel: () => void }) {
   const [weight, setWeight] = useState(""); const [date, setDate] = useState(todayISO()); const [note, setNote] = useState("");
   return (
     <FormCard>
       <div style={{ display: "flex", gap: 10 }}>
-        <Labeled label="Weight (kg) *"><input style={fi} type="number" step="0.1" min="0" placeholder="12.5" value={weight} onChange={(e) => setWeight(e.target.value)} /></Labeled>
+        <Labeled label={`Weight (${unit}) *`}><input style={fi} type="number" step="0.1" min="0" placeholder="12.5" value={weight} onChange={(e) => setWeight(e.target.value)} /></Labeled>
         <Labeled label="Date"><input style={fi} type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} /></Labeled>
       </div>
       <input style={fi} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -165,17 +168,33 @@ function AddBlock({ emoji, label, onClick }: { emoji: string; label: string; onC
 function Empty({ text }: { text: string }) {
   return <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 18, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft, marginBottom: 4 }}>{text}</div>;
 }
-function WeightChart({ data }: { data: number[] }) {
-  const w = 300, h = 90, pad = 6;
+function WeightChart({ data, dates }: { data: number[]; dates: string[] }) {
+  const w = 300, h = 120, padL = 4, padR = 4, padT = 8, padB = 36;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
   const min = Math.min(...data) - 0.5, max = Math.max(...data) + 0.5;
-  const pts = data.map((v, i) => [pad + (i * (w - pad * 2)) / Math.max(1, data.length - 1), h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2)]);
+  const pts = data.map((v, i) => [padL + (i * plotW) / Math.max(1, data.length - 1), padT + plotH - ((v - min) / (max - min || 1)) * plotH]);
   const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
-  const area = `${path} L${pts[pts.length - 1][0].toFixed(1)} ${h} L${pts[0][0].toFixed(1)} ${h} Z`;
+  const area = `${path} L${pts[pts.length - 1][0].toFixed(1)} ${padT + plotH} L${pts[0][0].toFixed(1)} ${padT + plotH} Z`;
+  const labelIdx = data.length <= 2 ? [0, data.length - 1] : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+  const lastIdx = labelIdx.length - 1;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}>
       <path d={area} fill="rgba(236,72,153,0.12)" />
       <path d={path} fill="none" stroke="var(--p-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 4 : 2.5} fill="var(--p-primary)" />)}
+      {labelIdx.filter((i) => i < dates.length).map((i, li) => (
+        <text
+          key={i}
+          x={pts[i][0]}
+          y={h - 6}
+          fontSize="8.5"
+          fill="var(--p-primary)"
+          textAnchor={li === 0 ? "start" : li === lastIdx ? "end" : "middle"}
+        >
+          {new Date(dates[i] + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+        </text>
+      ))}
     </svg>
   );
 }

@@ -24,10 +24,11 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return data as T;
 }
 
-const get  = <T>(path: string)                  => req<T>("GET",    path);
-const post = <T>(path: string, body?: unknown)  => req<T>("POST",   path, body);
-const put  = <T>(path: string, body?: unknown)  => req<T>("PUT",    path, body);
-const del  =     (path: string)                 => req<void>("DELETE", path);
+const get   = <T>(path: string)                 => req<T>("GET",    path);
+const post  = <T>(path: string, body?: unknown) => req<T>("POST",   path, body);
+const put   = <T>(path: string, body?: unknown) => req<T>("PUT",    path, body);
+const patch = <T>(path: string, body?: unknown) => req<T>("PATCH",  path, body);
+const del   =     (path: string)                => req<void>("DELETE", path);
 
 /* ── Auth ──────────────────────────────────────────────────────────────── */
 export const authApi = {
@@ -42,6 +43,11 @@ export const authApi = {
   sendVerification: () => post<{ message: string }>("/auth/send-verification"),
 
   verifyEmail: (code: string) => post<ApiUser>("/auth/verify-email", { code }),
+
+  forgotPassword: (email: string) => post<{ message: string }>("/auth/forgot-password", { email }),
+
+  resetPassword: (token: string, new_password: string) =>
+    post<{ message: string }>("/auth/reset-password", { token, new_password }),
 };
 
 /* ── Pets ───────────────────────────────────────────────────────────────── */
@@ -63,8 +69,8 @@ export const mealsApi = {
 export const mealLogsApi = {
   list:   (petId: string, date?: string) =>
     get<ApiMealLog[]>(`/pets/${petId}/meal-logs${date ? `?date=${date}` : ""}`),
-  toggle: (petId: string, meal_id: string, date: string) =>
-    post<ApiMealLog>(`/pets/${petId}/meal-logs/toggle`, { meal_id, date }),
+  toggle: (petId: string, meal_id: string, date: string, fed_at?: number) =>
+    post<ApiMealLog>(`/pets/${petId}/meal-logs/toggle`, { meal_id, date, fed_at: fed_at ?? null }),
 };
 
 /* ── Health ─────────────────────────────────────────────────────────────── */
@@ -116,26 +122,67 @@ export const memoriesApi = {
 
 /* ── Calendar ───────────────────────────────────────────────────────────── */
 export const calendarApi = {
-  list:   (petId: string)              => get<ApiCalendarEvent[]>(`/pets/${petId}/events`),
+  list: (petId: string) => {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const hhmm  = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    return get<ApiCalendarEvent[]>(`/pets/${petId}/events?today=${today}&now_hhmm=${hhmm}`);
+  },
   create: (petId: string, d: Omit<ApiCalendarEvent, "id" | "pet_id">) => post<ApiCalendarEvent>(`/pets/${petId}/events`, d),
   update: (petId: string, id: string, d: Partial<ApiCalendarEvent>)   => put<ApiCalendarEvent>(`/pets/${petId}/events/${id}`, d),
   delete: (petId: string, id: string) => del(`/pets/${petId}/events/${id}`),
 };
 
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+export const chatApi = {
+  history: (pet_id?: string) =>
+    get<ApiChatMessage[]>(`/user/chat/history${pet_id ? `?pet_id=${pet_id}` : ""}`),
+  send: (text: string, pet_id?: string, image_base64?: string) =>
+    post<{ user_msg: ApiChatMessage; ai_msg: ApiChatMessage }>("/user/chat/send", { text, pet_id, image_base64 }),
+  deleteHistory: (pet_id?: string) =>
+    del(`/user/chat/history${pet_id ? `?pet_id=${pet_id}` : ""}`),
+};
+
+/* ── Documents ──────────────────────────────────────────────────────────── */
+export const documentsApi = {
+  list:   () => get<ApiDocument[]>("/user/documents"),
+  create: (d: Omit<ApiDocument, "id" | "user_id">) => post<ApiDocument>("/user/documents", d),
+  rename: (id: string, name: string) => patch<ApiDocument>(`/user/documents/${id}`, { name }),
+  delete: (id: string) => del(`/user/documents/${id}`),
+};
+
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+export const alertsApi = {
+  list: () => get<ApiAlertRecord[]>("/user/alerts"),
+  upsertBatch: (alerts: ApiAlertRecordIn[]) =>
+    post<{ upserted: number }>("/user/alerts/upsert-batch", alerts),
+};
+
 /* ── Settings / Vet / Activity ──────────────────────────────────────────── */
 export const userApi = {
+  getMe: ()                             => get<ApiUser>("/user/me"),
+  updatePhoto: (photo_url: string)      => req<ApiUser>("PATCH", "/user/profile", { photo_url }),
   getSettings: ()                       => get<ApiSettings>("/user/settings"),
   updateSettings: (d: Partial<ApiSettings>) => put<ApiSettings>("/user/settings", d),
   getVet: ()                            => get<ApiVet | null>("/user/vet"),
   upsertVet: (d: Omit<ApiVet, "id" | "owner_id">) => put<ApiVet>("/user/vet", d),
   deleteVet: ()                         => del("/user/vet"),
-  getActivity: ()                       => get<{ dates: string[] }>("/user/activity"),
-  recordActivity: ()                    => post<{ dates: string[] }>("/user/activity"),
+  getActivity: ()                       => get<ApiActivity>("/user/activity"),
+  recordActivity: ()                    => post<ApiActivity>("/user/activity"),
+  requestDeletion: ()                   => req<void>("POST", "/user/request-deletion"),
+};
+
+export const accountApi = {
+  cancelDeletion: (identifier: string, password: string) =>
+    post<{ access_token: string; token_type: string; user: ApiUser }>("/auth/cancel-deletion", { identifier, password }),
 };
 
 /* ── API shape types (snake_case — match FastAPI schemas) ───────────────── */
 export interface ApiUser {
-  id: string; name: string; username: string; email: string; email_verified: boolean; created_at: string;
+  id: string; name: string; username: string; email: string; email_verified?: boolean; photo_url?: string; created_at: string;
+}
+export interface ApiActivity {
+  dates: string[]; streak: number; streak_broken: boolean;
 }
 export interface ApiPet {
   id: string; owner_id: string; name: string; species: string; breed: string;
@@ -147,6 +194,7 @@ export interface ApiMeal {
 }
 export interface ApiMealLog {
   id: string; pet_id: string; meal_id: string; date: string; done: boolean;
+  fed_at?: number | null;
 }
 export interface ApiVaccination {
   id: string; pet_id: string; name: string; date: string; next_due: string; clinic: string;
@@ -165,9 +213,10 @@ export interface ApiMilestone {
 }
 export interface ApiMemory {
   id: string; pet_id: string; photo_url: string; caption: string; date: string;
+  title?: string; mood?: string; tags?: string; media_type?: string; time_taken?: string;
 }
 export interface ApiCalendarEvent {
-  id: string; pet_id: string; title: string; date: string; emoji: string;
+  id: string; pet_id: string; title: string; date: string; time: string; all_day: boolean; emoji: string;
 }
 export interface ApiVet {
   id: string; owner_id: string; name: string; clinic: string; phone: string; alt_phone: string; address: string;
@@ -175,4 +224,26 @@ export interface ApiVet {
 export interface ApiSettings {
   theme: string; push: boolean; email: boolean; sound: boolean;
   units: string; currency: string; language: string;
+}
+export interface ApiChatMessage {
+  id: string; user_id: string; pet_id?: string | null;
+  role: string; text: string; image_data?: string | null; created_at: string;
+}
+export interface ApiDocument {
+  id: string; user_id: string; name: string; category: string;
+  file_data: string; mime_type: string; uploaded_at: string;
+}
+export interface ApiAlertRecord {
+  alert_key: string; user_id: string; pet_id?: string | null;
+  emoji: string; title: string; body: string; when_display: string;
+  when_ms?: number | null; group_name: string; color: string;
+  sort_time?: number | null; status: string;
+  created_at: number; expires_at: number;
+}
+export interface ApiAlertRecordIn {
+  alert_key: string; pet_id?: string | null;
+  emoji: string; title: string; body: string; when_display: string;
+  when_ms?: number | null; group_name: string; color: string;
+  sort_time?: number | null; status: string;
+  created_at: number; expires_at: number;
 }

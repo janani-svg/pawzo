@@ -5,46 +5,61 @@ from email.message import EmailMessage
 
 logger = logging.getLogger("pawzo.email")
 
-SMTP_HOST     = os.getenv("SMTP_HOST", "")
-SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER     = os.getenv("SMTP_USER", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM     = os.getenv("SMTP_FROM", SMTP_USER or "no-reply@pawzo.app")
-SMTP_USE_TLS  = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+
+def _smtp_send(msg: EmailMessage) -> None:
+    smtp_host     = os.getenv("SMTP_HOST", "")
+    smtp_port     = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user     = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    smtp_use_tls  = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+
+    if not smtp_host:
+        print(f"[pawzo] SMTP not configured — email to {msg['To']}:\n{msg.get_content()}")
+        return
+
+    print(f"[pawzo] Sending email to {msg['To']} via {smtp_host}:{smtp_port}")
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            if smtp_use_tls:
+                server.starttls()
+            if smtp_user:
+                server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        print(f"[pawzo] Email sent successfully to {msg['To']}")
+    except Exception as e:
+        logger.error("Failed to send email to %s: %s", msg["To"], e)
+        print(f"[pawzo] SMTP ERROR: {e}")
+        raise
 
 
 def send_verification_email(to_email: str, code: str) -> None:
-    """Email a verification code to the user.
-
-    If no SMTP server is configured, the code is logged to the console instead
-    so the flow stays usable in local development.
-    """
-    subject = "Your Pawzo verification code"
-    body = (
+    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
+    msg = EmailMessage()
+    msg["Subject"] = "Your Pawzo verification code"
+    msg["From"]    = smtp_from
+    msg["To"]      = to_email
+    msg.set_content(
         f"Hi there! 🐾\n\n"
         f"Your Pawzo email verification code is:\n\n"
         f"    {code}\n\n"
-        f"It expires in 10 minutes. If you didn't request this, you can ignore "
-        f"this email.\n\n"
+        f"It expires in 10 minutes. If you didn't request this, ignore this email.\n\n"
         f"— The Pawzo team"
     )
+    _smtp_send(msg)
 
-    if not SMTP_HOST:
-        logger.warning(
-            "SMTP not configured — verification code for %s is: %s", to_email, code
-        )
-        print(f"[pawzo] Verification code for {to_email}: {code}")
-        return
 
+def send_reset_email(to_email: str, reset_link: str) -> None:
+    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
     msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-    msg.set_content(body)
-
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        if SMTP_USE_TLS:
-            server.starttls()
-        if SMTP_USER:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-        server.send_message(msg)
+    msg["Subject"] = "Reset your Pawzo password"
+    msg["From"]    = smtp_from
+    msg["To"]      = to_email
+    msg.set_content(
+        f"Hi there! 🐾\n\n"
+        f"We received a request to reset your Pawzo password.\n\n"
+        f"Click the link below to set a new password:\n\n"
+        f"    {reset_link}\n\n"
+        f"This link expires in 1 hour. If you didn't request this, ignore this email.\n\n"
+        f"— The Pawzo team"
+    )
+    _smtp_send(msg)

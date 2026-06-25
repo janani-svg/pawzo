@@ -22,10 +22,15 @@ class UserOut(BaseModel):
     name: str
     username: str
     email: str
-    email_verified: bool
+    email_verified: bool = False
+    photo_url: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserProfileUpdate(BaseModel):
+    photo_url: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -36,6 +41,15 @@ class TokenResponse(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     code: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 
 class MessageResponse(BaseModel):
@@ -115,6 +129,7 @@ class MealOut(BaseModel):
 class MealLogToggle(BaseModel):
     meal_id: str
     date: str
+    fed_at: Optional[int] = None  # epoch ms — supplied by client when marking done
 
 
 class MealLogOut(BaseModel):
@@ -123,6 +138,7 @@ class MealLogOut(BaseModel):
     meal_id: str
     date: str
     done: bool
+    fed_at: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -268,12 +284,22 @@ class MemoryCreate(BaseModel):
     photo_url: str = ""
     caption: str = ""
     date: str
+    title: str = ""
+    mood: str = ""
+    tags: str = ""
+    media_type: str = "photo"
+    time_taken: str = ""
 
 
 class MemoryUpdate(BaseModel):
     photo_url: Optional[str] = None
     caption: Optional[str] = None
     date: Optional[str] = None
+    title: Optional[str] = None
+    mood: Optional[str] = None
+    tags: Optional[str] = None
+    media_type: Optional[str] = None
+    time_taken: Optional[str] = None
 
 
 class MemoryOut(BaseModel):
@@ -282,8 +308,23 @@ class MemoryOut(BaseModel):
     photo_url: str
     caption: str
     date: str
+    title: str = ""
+    mood: str = ""
+    tags: str = ""
+    media_type: str = "photo"
+    time_taken: str = ""
 
     model_config = {"from_attributes": True}
+
+
+class MoodDetectRequest(BaseModel):
+    photo_data_url: str
+    pet_name: str = ""
+    pet_species: str = ""
+
+
+class MoodDetectOut(BaseModel):
+    mood: str
 
 
 # ── Calendar Events ───────────────────────────────────────────────────────────
@@ -291,12 +332,16 @@ class MemoryOut(BaseModel):
 class CalendarEventCreate(BaseModel):
     title: str
     date: str
+    time: str = ""
+    all_day: bool = False
     emoji: str = ""
 
 
 class CalendarEventUpdate(BaseModel):
     title: Optional[str] = None
     date: Optional[str] = None
+    time: Optional[str] = None
+    all_day: Optional[bool] = None
     emoji: Optional[str] = None
 
 
@@ -305,6 +350,8 @@ class CalendarEventOut(BaseModel):
     pet_id: str
     title: str
     date: str
+    time: str = ""
+    all_day: bool = False
     emoji: str
 
     model_config = {"from_attributes": True}
@@ -356,7 +403,97 @@ class SettingsOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Alert Records ─────────────────────────────────────────────────────────────
+
+class AlertRecordIn(BaseModel):
+    alert_key:    str
+    pet_id:       Optional[str] = None
+    emoji:        str = ""
+    title:        str
+    body:         str = ""
+    when_display: str = ""
+    when_ms:      Optional[int] = None
+    group_name:   str = "Today"
+    color:        str = ""
+    sort_time:    Optional[int] = None
+    status:       str = "upcoming"
+    created_at:   int
+    expires_at:   int
+
+
+class AlertRecordOut(BaseModel):
+    alert_key:    str
+    user_id:      str
+    pet_id:       Optional[str] = None
+    emoji:        str
+    title:        str
+    body:         str
+    when_display: str
+    when_ms:      Optional[int] = None
+    group_name:   str
+    color:        str
+    sort_time:    Optional[int] = None
+    status:       str
+    created_at:   int
+    expires_at:   int
+
+    model_config = {"from_attributes": True}
+
+
 # ── Activity / Streak ─────────────────────────────────────────────────────────
 
 class ActivityOut(BaseModel):
     dates: list[str]
+    streak: int = 0
+    streak_broken: bool = False
+
+
+# ── Documents ─────────────────────────────────────────────────────────────────
+
+class DocumentCreate(BaseModel):
+    name: str
+    category: str = "Other"
+    file_data: str = ""
+    mime_type: str = ""
+    uploaded_at: str
+
+
+class DocumentRename(BaseModel):
+    name: str
+
+
+class DocumentOut(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    category: str
+    file_data: str
+    mime_type: str
+    uploaded_at: str
+
+    model_config = {"from_attributes": True}
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class ChatSend(BaseModel):
+    text: str
+    pet_id: Optional[str] = None
+    image_base64: Optional[str] = None  # base64-encoded image from frontend
+
+
+class ChatMessageOut(BaseModel):
+    id: str
+    user_id: str
+    pet_id: Optional[str]
+    role: str
+    text: str
+    image_data: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatResponse(BaseModel):
+    user_msg: ChatMessageOut
+    ai_msg: ChatMessageOut

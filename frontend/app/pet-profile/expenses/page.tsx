@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
-import { usePawzo, useRequireAuth, todayISO, fmtDate, fileToDataURL } from "../../lib/store";
+import { usePawzo, useRequireAuth, todayISO, fmtDate, fileToDataURL, getCurrencySymbol } from "../../lib/store";
 import { scanReceipt } from "../../lib/ocr";
 
 const CATEGORIES = ["Food", "Veterinary", "Medication", "Grooming", "Supplies", "Training", "Emergency", "Other"];
@@ -18,6 +18,7 @@ export default function ExpensesPage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
   const { state, selectedPet, add, remove } = usePawzo();
+  const sym = getCurrencySymbol(state.settings.currency);
   const [open, setOpen] = useState(false);
   const [seeAll, setSeeAll] = useState(false);
 
@@ -37,7 +38,7 @@ export default function ExpensesPage() {
       <div style={{ padding: "8px 16px 0" }}>
         <div style={{ background: T.pink, borderRadius: 20, padding: 18, color: "#fff", boxShadow: "0 8px 20px rgba(217,79,138,0.25)" }}>
           <p style={{ fontSize: 12.5, opacity: 0.9, fontWeight: 600 }}>Total tracked</p>
-          <p style={{ fontSize: 32, fontWeight: 800, margin: "2px 0 0" }}>${total.toFixed(2)}</p>
+          <p style={{ fontSize: 32, fontWeight: 800, margin: "2px 0 0" }}>{sym}{total.toFixed(2)}</p>
           <p style={{ fontSize: 11.5, opacity: 0.9 }}>{expenses.length} {expenses.length === 1 ? "entry" : "entries"} · {pet.name}</p>
         </div>
 
@@ -57,7 +58,7 @@ export default function ExpensesPage() {
                   <div key={c.cat}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>{c.cat}</span>
-                      <span style={{ fontSize: 12.5, fontWeight: 800, color: CAT_COLOR[c.cat] }}>${c.amount.toFixed(2)} · {pct}%</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 800, color: CAT_COLOR[c.cat] }}>{sym}{c.amount.toFixed(2)} · {pct}%</span>
                     </div>
                     <div style={{ height: 10, borderRadius: 6, background: "var(--p-surface-2)", overflow: "hidden" }}>
                       <div style={{ width: `${pct}%`, height: "100%", borderRadius: 6, background: CAT_COLOR[c.cat], transition: "width 600ms" }} />
@@ -88,7 +89,7 @@ export default function ExpensesPage() {
                   <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.category}{e.note ? ` · ${e.note}` : ""}</p>
                   <p style={{ fontSize: 11.5, color: T.grayLight }}>{fmtDate(e.date)}</p>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>${e.amount.toFixed(2)}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>{sym}{e.amount.toFixed(2)}</span>
                 <button onClick={() => remove("expenses", e.id)} aria-label="Delete" className="pawzo-press" style={{ width: 30, height: 30, borderRadius: 9, border: "none", background: T.dangerBg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
                 </button>

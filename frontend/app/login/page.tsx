@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PawzoLogo, PrimaryButton, T, inputStyle } from "../components/pawzo-ui";
 import { usePawzo } from "../lib/store";
+import { accountApi, authApi } from "../lib/api";
 
 /* ---------------------------------------------------------------- pet mosaic */
 const PETS = [
@@ -27,13 +28,16 @@ export default function LoginPage() {
   const [pw, setPw]           = useState("");
   const [showPw, setShowPw]   = useState(false);
   const [error, setError]     = useState("");
-  const [mode, setMode]       = useState<"login" | "forgot">("login");
+  const [mode, setMode]       = useState<"login" | "forgot" | "pending_deletion">("login");
+  const [pendingDays, setPendingDays]     = useState({ toCancel: 0, toDelete: 30 });
+  const [cancelPw, setCancelPw]           = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError]     = useState("");
 
   const [fEmail,   setFEmail]   = useState("");
-  const [fPw,      setFPw]      = useState("");
-  const [fConfirm, setFConfirm] = useState("");
   const [fMsg,     setFMsg]     = useState("");
   const [fErr,     setFErr]     = useState("");
+  const [fLoading, setFLoading] = useState(false);
 
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -44,19 +48,33 @@ export default function LoginPage() {
     setLoginLoading(true);
     const r = await login(id.trim(), pw);
     setLoginLoading(false);
-    if (!r.ok) { setError(r.error ?? "Could not log in."); return; }
+    if (!r.ok) {
+      const msg = r.error ?? "";
+      if (msg.startsWith("PENDING_DELETION:")) {
+        const [, toCancel, toDelete] = msg.split(":");
+        setPendingDays({ toCancel: parseInt(toCancel), toDelete: parseInt(toDelete) });
+        setMode("pending_deletion");
+        return;
+      }
+      setError(msg || "Could not log in.");
+      return;
+    }
     router.push("/dashboard");
   }
 
-  function doReset(e: React.FormEvent) {
+  async function doReset(e: React.FormEvent) {
     e.preventDefault();
     setFErr(""); setFMsg("");
     if (!validEmail(fEmail)) { setFErr("Enter a valid email address."); return; }
-    if (!strongPassword(fPw)) { setFErr("Password needs 8+ chars, an uppercase letter, a number and a symbol."); return; }
-    if (fPw !== fConfirm) { setFErr("Passwords don't match yet."); return; }
-    const r = resetPassword(fEmail.trim(), fPw);
-    if (!r.ok) { setFErr(r.error ?? "Could not reset."); return; }
-    setFMsg("Password reset coming soon — contact support.");
+    setFLoading(true);
+    try {
+      const r = await authApi.forgotPassword(fEmail.trim());
+      setFMsg(r.message);
+    } catch (e: unknown) {
+      setFErr((e as Error).message ?? "Something went wrong.");
+    } finally {
+      setFLoading(false);
+    }
   }
 
   return (
@@ -110,7 +128,61 @@ export default function LoginPage() {
             <PawzoLogo size={24} />
           </div>
 
-          {mode === "login" ? (
+          {mode === "pending_deletion" ? (
+            <>
+              <div style={{ fontSize: 42, textAlign: "center", marginBottom: 10 }}>🗑️</div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>
+                Account scheduled for deletion
+              </h1>
+              {pendingDays.toCancel > 0 ? (
+                <p style={{ fontSize: 13, color: T.gray, textAlign: "center", lineHeight: 1.5, margin: "0 0 20px" }}>
+                  You have <b>{pendingDays.toCancel} day{pendingDays.toCancel !== 1 ? "s" : ""}</b> left to cancel. Enter your password below to restore your account.
+                </p>
+              ) : (
+                <p style={{ fontSize: 13, color: T.gray, textAlign: "center", lineHeight: 1.5, margin: "0 0 20px" }}>
+                  The cancellation window has passed. Your account data will be deleted in <b>{pendingDays.toDelete} day{pendingDays.toDelete !== 1 ? "s" : ""}</b>.
+                </p>
+              )}
+
+              {pendingDays.toCancel > 0 && (
+                <>
+                  <input
+                    style={inputStyle}
+                    type="password"
+                    placeholder="Your password"
+                    value={cancelPw}
+                    onChange={(e) => { setCancelPw(e.target.value); setCancelError(""); }}
+                  />
+                  {cancelError && <ErrorBox>{cancelError}</ErrorBox>}
+                  <PrimaryButton
+                    full
+                    style={{ height: 52, borderRadius: 26, marginTop: 12 }}
+                    disabled={cancelLoading || !cancelPw}
+                    onClick={async () => {
+                      setCancelLoading(true);
+                      try {
+                        const res = await accountApi.cancelDeletion(id.trim(), cancelPw);
+                        localStorage.setItem("pawzo:token", res.access_token);
+                        router.push("/dashboard");
+                      } catch (e: unknown) {
+                        setCancelError(e instanceof Error ? e.message : "Could not cancel deletion.");
+                      } finally {
+                        setCancelLoading(false);
+                      }
+                    }}
+                  >
+                    {cancelLoading ? "Restoring…" : "Cancel deletion & log in"}
+                  </PrimaryButton>
+                </>
+              )}
+
+              <p style={{ textAlign: "center", fontSize: 13, color: T.gray, marginTop: 20 }}>
+                <button type="button" onClick={() => { setMode("login"); setError(""); }} style={linkBtn}>
+                  ← Back to log in
+                </button>
+              </p>
+            </>
+          ) : mode === "login" ? (
             <>
               <h1 style={{ fontSize: 21, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 3px" }}>
                 Log in to your account
@@ -176,24 +248,23 @@ export default function LoginPage() {
           ) : (
             <>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 4px" }}>
-                Reset password 🔑
+                Forgot password 🔑
               </h1>
               <p style={{ fontSize: 13.5, color: T.gray, textAlign: "center", margin: "0 0 22px" }}>
-                Enter your email and choose a new password
+                Enter your email and we&apos;ll send you a reset link.
               </p>
 
               <form onSubmit={doReset}>
-                <label style={{ display: "block", marginBottom: 13 }}>
-                  <span style={fieldLabel}>Email</span>
-                  <input style={inputStyle} type="email" placeholder="you@pawzo.com" value={fEmail} onChange={(e) => { setFEmail(e.target.value); setFErr(""); }} />
-                </label>
-                <label style={{ display: "block", marginBottom: 13 }}>
-                  <span style={fieldLabel}>New password</span>
-                  <input style={inputStyle} type="password" placeholder="8+ chars, A-Z, 0-9, symbol" value={fPw} onChange={(e) => { setFPw(e.target.value); setFErr(""); }} />
-                </label>
                 <label style={{ display: "block", marginBottom: 16 }}>
-                  <span style={fieldLabel}>Confirm new password</span>
-                  <input style={inputStyle} type="password" placeholder="Re-enter password" value={fConfirm} onChange={(e) => { setFConfirm(e.target.value); setFErr(""); }} />
+                  <span style={fieldLabel}>Email address</span>
+                  <input
+                    style={inputStyle}
+                    type="email"
+                    placeholder="you@pawzo.com"
+                    value={fEmail}
+                    onChange={(e) => { setFEmail(e.target.value); setFErr(""); }}
+                    autoComplete="email"
+                  />
                 </label>
 
                 {fErr && <ErrorBox>{fErr}</ErrorBox>}
@@ -203,8 +274,8 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <PrimaryButton full type="submit" style={{ height: 52, borderRadius: 26 }}>
-                  Update password
+                <PrimaryButton full type="submit" disabled={fLoading} style={{ height: 52, borderRadius: 26 }}>
+                  {fLoading ? "Sending…" : "Send reset link"}
                 </PrimaryButton>
               </form>
 

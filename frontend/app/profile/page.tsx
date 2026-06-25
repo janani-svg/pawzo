@@ -5,9 +5,10 @@
    to store.logout(). */
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppFrame, BottomNav, TopBar, SectionTitle, T, IconGear, ChevronRight } from "../components/pawzo-ui";
-import { usePawzo, useRequireAuth } from "../lib/store";
+import { AppFrame, BottomNav, TopBar, SectionTitle, T, IconGear, ChevronRight, IconPlus } from "../components/pawzo-ui";
+import { usePawzo, useRequireAuth, todayISO, fileToDataURL } from "../lib/store";
 
 const SECTIONS = [
   { label: "Calendar & events", href: "/calendar" },
@@ -19,20 +20,63 @@ const SECTIONS = [
 export default function ProfilePage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
-  const { state, currentUser, myPets, streak, logout } = usePawzo();
-
+  const { state, currentUser, myPets, streak, streakBroken, logout, requestDeletion, updateUserPhoto, addDocument, removeDocument, renameDocument } = usePawzo();
+  const [docUploading, setDocUploading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
+  const [docDeleteId, setDocDeleteId] = useState<string | null>(null);
+  const [docDeleteConfirm, setDocDeleteConfirm] = useState(false);
+  const [docRenameId, setDocRenameId] = useState<string | null>(null);
+  const [docRenameName, setDocRenameName] = useState("");
+  const docFileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   if (!ready || !authed) return null;
 
   const user = currentUser();
+  const photoUrl = user?.photo ?? "";
   const pets = myPets();
   const petIds = new Set(pets.map((p) => p.id));
   const memCount = state.memories.filter((m) => petIds.has(m.petId)).length;
   const initial = (user?.name?.[0] ?? "U").toUpperCase();
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateUserPhoto(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
   function doLogout() {
     logout();
     router.push("/login");
   }
+
+  const DOC_CATEGORIES = ["Vaccination", "Insurance", "Adoption", "Medical Report", "ID", "Other"];
+  const CAT_EMOJI: Record<string, string> = { Vaccination: "💉", Insurance: "🛡️", Adoption: "🏠", "Medical Report": "🩺", ID: "🪪", Other: "📄" };
+
+  async function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocUploading(true);
+    try {
+      const fileData = await fileToDataURL(file, 1200);
+      const name = file.name.replace(/\.[^.]+$/, "");
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      const cat = ext === "pdf" ? "Medical Report" : "Other";
+      await addDocument({ name, category: cat, fileData, mimeType: file.type, uploadedAt: todayISO() });
+    } finally {
+      setDocUploading(false);
+      if (docFileRef.current) docFileRef.current.value = "";
+    }
+  }
+
+  const filteredDocs = state.documents.filter(
+    (d) => d.name.toLowerCase().includes(docSearch.toLowerCase())
+  );
 
   return (
     <AppFrame>
@@ -49,13 +93,31 @@ export default function ProfilePage() {
       <div style={{ padding: "4px 16px 0" }}>
         {/* header card — solid fill only, no gradient */}
         <div style={{ background: T.petPink, borderRadius: 22, padding: 20, display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{
-            width: 70, height: 70, borderRadius: "50%", background: T.pink,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 28, fontWeight: 800, flexShrink: 0,
-          }}>
-            {initial}
+          {/* avatar with camera badge on bottom-right */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{
+              width: 70, height: 70, borderRadius: "50%", background: T.pink,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: 28, fontWeight: 800, overflow: "hidden",
+            }}>
+              {photoUrl
+                ? <img src={photoUrl} alt="profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : initial}
+            </div>
+            {/* camera badge */}
+            <button
+              onClick={() => fileRef.current?.click()}
+              aria-label="Change profile photo"
+              style={{
+                position: "absolute", bottom: 0, right: 0,
+                background: "none", border: "none",
+                cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1,
+              }}
+            >
+              📷
+            </button>
           </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoChange} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 19, fontWeight: 800, color: T.pinkDeep }}>{user?.name ?? "—"}</p>
             <p style={{ fontSize: 12.5, color: T.gray }}>@{user?.username ?? "—"}</p>
@@ -68,7 +130,7 @@ export default function ProfilePage() {
           {[
             { label: "Pets", value: String(pets.length) },
             { label: "Memories", value: String(memCount) },
-            { label: "Day streak", value: String(streak()) },
+            { label: "Day streak", value: streakBroken() ? "💔" : streak() === 0 ? "0" : `🔥 ${streak()}` },
           ].map((s) => (
             <div key={s.label} style={{ flex: 1, background: "var(--p-surface)", borderRadius: 16, padding: "14px 8px", textAlign: "center", boxShadow: T.shadowSoft }}>
               <p style={{ fontSize: 22, fontWeight: 800, color: T.pinkDeep }}>{s.value}</p>
@@ -76,6 +138,128 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* Document Vault — one unified card */}
+        <SectionTitle>Document Vault</SectionTitle>
+        <input ref={docFileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={handleDocUpload} />
+
+        <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden", marginBottom: 4 }}>
+          {/* Upload button — pinned at top */}
+          <div style={{ padding: "12px 14px", borderBottom: "1.5px dashed #D9B8EC" }}>
+            <button
+              onClick={() => docFileRef.current?.click()}
+              disabled={docUploading}
+              className="pawzo-press"
+              style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "1.5px dashed #D9B8EC", background: "var(--p-surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: T.pink, fontWeight: 700, fontSize: 14 }}
+            >
+              <IconPlus color={T.pink} size={17} />
+              {docUploading ? "Uploading…" : "Upload Document"}
+            </button>
+          </div>
+
+          {/* Search bar — only when docs exist */}
+          {state.documents.length > 0 && (
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--p-border)" }}>
+              <div style={{ position: "relative" }}>
+                <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.grayLight} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                <input
+                  placeholder="Search documents…"
+                  value={docSearch}
+                  onChange={(e) => setDocSearch(e.target.value)}
+                  style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", borderRadius: 10, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 12.5, color: T.ink, outline: "none" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {state.documents.length === 0 && (
+            <p style={{ fontSize: 12, color: T.grayLight, textAlign: "center", padding: "18px 16px", margin: 0 }}>No documents yet — upload vaccination certs, insurance, adoption papers &amp; more.</p>
+          )}
+          {state.documents.length > 0 && filteredDocs.length === 0 && (
+            <p style={{ fontSize: 12, color: T.grayLight, textAlign: "center", padding: "18px 16px", margin: 0 }}>No documents match &ldquo;{docSearch}&rdquo;.</p>
+          )}
+
+          {/* Scrollable doc list — latest 3 visible, older scroll down */}
+          {filteredDocs.length > 0 && (
+            <div style={{ maxHeight: 168, overflowY: "auto" }}>
+              {filteredDocs.map((doc, idx) => (
+                <div key={doc.id} style={{ padding: "11px 14px", borderBottom: idx < filteredDocs.length - 1 ? "1px solid var(--p-border)" : "none" }}>
+                  {docRenameId === doc.id ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input
+                        autoFocus
+                        value={docRenameName}
+                        onChange={(e) => setDocRenameName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { renameDocument(doc.id, docRenameName.trim() || doc.name); setDocRenameId(null); }
+                          if (e.key === "Escape") setDocRenameId(null);
+                        }}
+                        style={{ flex: 1, fontSize: 13, fontWeight: 700, color: T.ink, border: "1.5px solid #D9B8EC", borderRadius: 8, padding: "5px 8px", background: "var(--p-surface-2)", outline: "none" }}
+                      />
+                      <button onClick={() => { renameDocument(doc.id, docRenameName.trim() || doc.name); setDocRenameId(null); }} style={{ padding: "5px 10px", borderRadius: 8, border: "none", background: T.pink, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
+                      <button onClick={() => setDocRenameId(null)} style={{ padding: "5px 8px", borderRadius: 8, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 12, fontWeight: 700, color: T.gray, cursor: "pointer" }}>✕</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 9, background: T.primarySoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                        {CAT_EMOJI[doc.category] ?? "📄"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>{doc.name}</p>
+                        <p style={{ fontSize: 10.5, color: T.grayLight, margin: "1px 0 0" }}>{doc.category} · {doc.uploadedAt}</p>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                        {/* Rename */}
+                        <button onClick={() => { setDocRenameId(doc.id); setDocRenameName(doc.name); }} className="pawzo-press" title="Rename" style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.gray} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        {/* Download */}
+                        <a href={doc.fileData} download={doc.name} className="pawzo-press" title="Download" style={{ width: 28, height: 28, borderRadius: 8, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </a>
+                        {/* Delete */}
+                        <button onClick={() => setDocDeleteId(doc.id)} className="pawzo-press" title="Delete" style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: T.dangerBg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Delete confirmation — two steps */}
+        {docDeleteId && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
+            <div style={{ background: "var(--p-surface)", borderRadius: 22, padding: 24, width: "100%", maxWidth: 340, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ fontSize: 36, textAlign: "center", marginBottom: 10 }}>🗑️</div>
+              {!docDeleteConfirm ? (
+                <>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>Delete this document?</p>
+                  <p style={{ fontSize: 13, color: T.gray, textAlign: "center", margin: "0 0 20px" }}>
+                    &ldquo;{state.documents.find((d) => d.id === docDeleteId)?.name}&rdquo; will be permanently removed.
+                  </p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={() => setDocDeleteId(null)} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Cancel</button>
+                    <button onClick={() => setDocDeleteConfirm(true)} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: T.danger, fontSize: 13.5, fontWeight: 800, color: "#fff", cursor: "pointer" }}>Yes, delete</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>Are you absolutely sure?</p>
+                  <p style={{ fontSize: 13, color: T.gray, textAlign: "center", margin: "0 0 20px" }}>This action cannot be undone.</p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={() => { setDocDeleteId(null); setDocDeleteConfirm(false); }} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Cancel</button>
+                    <button onClick={() => { removeDocument(docDeleteId); setDocDeleteId(null); setDocDeleteConfirm(false); }} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: T.danger, fontSize: 13.5, fontWeight: 800, color: "#fff", cursor: "pointer" }}>Delete forever</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* navigation links */}
         <SectionTitle>More</SectionTitle>
@@ -104,7 +288,47 @@ export default function ProfilePage() {
         >
           Log out
         </button>
+
+        <button
+          className="pawzo-press"
+          onClick={() => setConfirmDelete(true)}
+          style={{ marginTop: 10, width: "100%", textAlign: "center", padding: "13px", borderRadius: 16, background: "transparent", color: T.grayLight, fontWeight: 600, fontSize: 13, cursor: "pointer", border: `1.5px solid var(--p-border)` }}
+        >
+          Delete account
+        </button>
+
         <p style={{ textAlign: "center", fontSize: 11, color: T.grayLight, margin: "14px 0 6px" }}>Pawzo v1.0</p>
+
+        {confirmDelete && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
+            <div style={{ background: "var(--p-surface)", borderRadius: 22, padding: 24, width: "100%", maxWidth: 340, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ fontSize: 36, textAlign: "center", marginBottom: 10 }}>⚠️</div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>Delete your account?</p>
+              <p style={{ fontSize: 13, color: T.gray, textAlign: "center", lineHeight: 1.55, margin: "0 0 6px" }}>
+                You will be logged out immediately and <b>cannot log in for 7 days</b>.
+              </p>
+              <p style={{ fontSize: 13, color: T.gray, textAlign: "center", lineHeight: 1.55, margin: "0 0 20px" }}>
+                All your data will be <b>permanently deleted after 30 days</b>. You can cancel within the first 7 days from the login screen.
+              </p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setConfirmDelete(false)} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Cancel</button>
+                <button
+                  disabled={deleteLoading}
+                  onClick={async () => {
+                    setDeleteLoading(true);
+                    try { await requestDeletion(); } catch { /* ignore */ }
+                    logout();
+                    router.replace("/login");
+                  }}
+                  className="pawzo-press"
+                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: T.danger, fontSize: 13.5, fontWeight: 800, color: "#fff", cursor: "pointer", opacity: deleteLoading ? 0.6 : 1 }}
+                >
+                  {deleteLoading ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <BottomNav />

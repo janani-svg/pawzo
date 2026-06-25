@@ -32,13 +32,21 @@ export default function FoodPage() {
     return s + (done ? m.kcal : 0);
   }, 0);
 
-  // 7-day history
+  // Warn if all timed meals share the same time slot
+  const timedMeals = meals.filter((m) => m.time);
+  const allSameTime = timedMeals.length >= 2 && timedMeals.every((m) => m.time === timedMeals[0].time);
+
+  // 7-day history — total is unique meals tracked that day, not a fixed meals.length
   const history = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(); d.setDate(d.getDate() - i);
     const iso = d.toISOString().slice(0, 10);
-    const logs = state.mealLogs.filter((l) => l.petId === pet.id && l.date === iso && l.done);
-    const kcal = logs.reduce((s, l) => s + (meals.find((m) => m.id === l.mealId)?.kcal ?? 0), 0);
-    return { iso, count: logs.length, kcal };
+    const dayLogs  = state.mealLogs.filter((l) => l.petId === pet.id && l.date === iso);
+    const fedLogs  = dayLogs.filter((l) => l.done);
+    const fedMeals = fedLogs.map((l) => meals.find((m) => m.id === l.mealId)).filter(Boolean) as typeof meals;
+    // Use actual log count as total for past days; fall back to current meal count if nothing was logged
+    const total = dayLogs.length > 0 ? dayLogs.length : meals.length;
+    const kcal  = fedMeals.reduce((s, m) => s + m.kcal, 0);
+    return { iso, count: fedLogs.length, total, kcal, fedMeals };
   });
 
   function saveMeal() {
@@ -56,7 +64,7 @@ export default function FoodPage() {
       <div style={{ padding: "8px 16px 0" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <button className="pawzo-press" style={btn(false)} onClick={() => setForm(EMPTY)}><IconPlus color={T.ink} size={16} /> Add meal</button>
-          <button className="pawzo-press" style={btn(true)} onClick={() => router.push("/ai")}><IconSpark color="#fff" size={16} /> Ask AI</button>
+          <button className="pawzo-press" style={btn(true)} onClick={() => router.push(`/ai?pet=${pet.id}`)}><IconSpark color="#fff" size={16} /> Ask AI</button>
         </div>
 
         {/* add/edit form */}
@@ -77,6 +85,18 @@ export default function FoodPage() {
         )}
 
         <SectionTitle action={<span style={{ fontSize: 11.5, fontWeight: 700, color: T.grayLight }}>Today</span>}>Today&apos;s menu</SectionTitle>
+
+        {allSameTime && (
+          <div className="pawzo-rise" style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#FFF7ED", border: "1.5px solid #FED7AA", borderRadius: 14, padding: "12px 14px", marginBottom: 12 }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#92400E", margin: 0 }}>All meals set to {timedMeals[0].time}</p>
+              <p style={{ fontSize: 12, color: "#B45309", marginTop: 3, lineHeight: 1.4 }}>
+                Feeding all meals at the same time isn&apos;t great for {pet.name}&apos;s digestion. Space them out through the day for better health! 🐾
+              </p>
+            </div>
+          </div>
+        )}
 
         {meals.length === 0 ? (
           <Empty text="No meals yet. Tap “Add meal” to build today's menu." />
@@ -121,12 +141,29 @@ export default function FoodPage() {
 
             {showHistory && (
               <div className="pawzo-rise" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                {history.map((h, i) => (
-                  <div key={h.iso} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--p-surface)", borderRadius: 14, padding: "11px 14px", boxShadow: T.shadowSoft }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{i === 0 ? "Today" : i === 1 ? "Yesterday" : fmtDate(h.iso)}</span>
-                    <span style={{ fontSize: 12, color: T.gray }}>{h.count}/{meals.length} meals · {h.kcal} kcal</span>
-                  </div>
-                ))}
+                {history.filter((h) => h.count > 0).length === 0 ? (
+                  <div style={{ background: "var(--p-surface)", borderRadius: 14, padding: "14px", textAlign: "center", color: T.grayLight, fontSize: 12, boxShadow: T.shadowSoft }}>No meals logged in the past 7 days.</div>
+                ) : history.filter((h) => h.count > 0).map((h) => {
+                  const origIndex = history.indexOf(h);
+                  const label = origIndex === 0 ? "Today" : origIndex === 1 ? "Yesterday" : fmtDate(h.iso);
+                  return (
+                    <div key={h.iso} style={{ background: "var(--p-surface)", borderRadius: 14, padding: "11px 14px", boxShadow: T.shadowSoft }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{label}</span>
+                        <span style={{ fontSize: 12, color: h.count === h.total ? T.success : T.gray, fontWeight: 600 }}>
+                          {h.count}/{h.total}{h.kcal > 0 ? ` · ${h.kcal} kcal` : ""}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>
+                        {h.fedMeals.map((m) => (
+                          <span key={m.id} style={{ fontSize: 11, fontWeight: 700, background: T.primarySoft, color: T.pinkDeep, borderRadius: 8, padding: "3px 8px" }}>
+                            🍽️ {m.food || m.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

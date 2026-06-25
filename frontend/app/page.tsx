@@ -28,7 +28,7 @@ export default function Landing() {
   ];
 
   return (
-    <div style={{ minHeight: "100dvh", background: "#FFFFFF", display: "flex", justifyContent: "center" }}>
+    <div style={{ minHeight: "100dvh", background: "var(--p-bg)", display: "flex", justifyContent: "center" }}>
       <div
         style={{
           width: "100%",

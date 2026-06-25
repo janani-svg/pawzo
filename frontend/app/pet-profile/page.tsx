@@ -9,12 +9,13 @@ import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, T, IconSpark, ChevronRight } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, ageFromDob, deriveAlerts, fmtDate, daysUntil } from "../lib/store";
 import { speciesEmoji } from "../dashboard/page";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function PetProfilePage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
-  const { state, selectedPet, myPets } = usePawzo();
+  const { state, selectedPet, myPets, deletePet } = usePawzo();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const pets = ready ? myPets() : [];
   const pet = ready ? selectedPet() : null;
@@ -42,7 +43,10 @@ export default function PetProfilePage() {
 
       {/* header card (read-only) */}
       <div style={{ padding: "4px 16px 0" }}>
-        <div style={{ background: T.petPink, borderRadius: 24, padding: 18 }}>
+        <div style={{ position: "relative", background: T.petPink, borderRadius: 24, padding: 18 }}>
+          <button onClick={() => setConfirmDelete(true)} className="pawzo-press" aria-label="Delete pet" style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, borderRadius: 9, border: "none", background: T.dangerBg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+          </button>
           <div style={{ display: "flex", gap: 14 }}>
             <div style={{ position: "relative", flexShrink: 0 }}>
               <div style={{ borderRadius: 18, overflow: "hidden", border: `2.5px solid ${T.pink}`, width: 84, height: 84 }}>
@@ -85,9 +89,23 @@ export default function PetProfilePage() {
         </div>
       </div>
 
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
+          <div style={{ background: "var(--p-surface)", borderRadius: 22, padding: 24, width: "100%", maxWidth: 340, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontSize: 36, textAlign: "center", marginBottom: 10 }}>⚠️</div>
+            <p style={{ fontSize: 16, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>Delete {pet.name}?</p>
+            <p style={{ fontSize: 13, color: T.gray, textAlign: "center", lineHeight: 1.5, margin: "0 0 20px" }}>This will permanently delete {pet.name} and all their meals, health records, expenses, memories, and events. This cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(false)} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { deletePet(pet.id); router.replace("/dashboard"); }} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: T.danger, fontSize: 13.5, fontWeight: 800, color: "#fff", cursor: "pointer" }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Ask AI */}
       <div style={{ padding: "12px 16px 0" }}>
-        <Link href="/ai" style={{ textDecoration: "none" }}>
+        <Link href={`/ai?pet=${pet.id}`} style={{ textDecoration: "none" }}>
           <div className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--p-surface)", borderRadius: 18, padding: "13px 16px", boxShadow: T.shadowSoft, cursor: "pointer" }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconSpark color="#fff" /></div>
             <div style={{ flex: 1 }}>
@@ -137,7 +155,7 @@ export default function PetProfilePage() {
         </div>
       </div>
 
-      <BottomNav alertCount={alerts.length} />
+      <BottomNav />
     </AppFrame>
   );
 }

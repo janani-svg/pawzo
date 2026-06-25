@@ -130,8 +130,12 @@ async def toggle_meal_log(
 
     if log:
         log.done = not log.done
+        if log.done and body.fed_at is not None:
+            log.fed_at = body.fed_at
+        elif not log.done:
+            log.fed_at = None
     else:
-        log = MealLog(pet_id=pet_id, meal_id=body.meal_id, date=body.date, done=True)
+        log = MealLog(pet_id=pet_id, meal_id=body.meal_id, date=body.date, done=True, fed_at=body.fed_at)
         db.add(log)
 
     await record_activity(current_user.id, db)
