@@ -6,15 +6,98 @@
    data; everything reads from the store. Solid fills only. */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, PawzoLogo, T, IconGear, IconPlus, ChevronRight } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, appendActivity } from "../lib/store";
+
+const STREAK_MS  = [2,5,10,30,60,90,120,150,180,210,240,270,300,330,360];
+const MEM_MS     = [1,10,20,30,40,50,100];
+
+function DashConfetti({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement!;
+    canvas.width  = parent.offsetWidth;
+    canvas.height = parent.offsetHeight;
+    const ctx = canvas.getContext("2d")!;
+    const COLORS = ["#F5A0C0","#F9D040","#A0D8F0","#C0E8A0","#E8A0F5","#F5C060","#80D8C0","#F5A0A0","#B0D8FF"];
+    type P = { x:number;y:number;vx:number;vy:number;size:number;color:string;rot:number;rotV:number;shape:"rect"|"circle";w:number;ws:number };
+    const pieces: P[] = [];
+    let frame = 0, raf: number;
+    function spawn() {
+      pieces.push({ x:Math.random()*canvas!.width, y:-8, vx:(Math.random()-0.5)*2.5, vy:1.5+Math.random()*2.5, size:3+Math.random()*5, color:COLORS[Math.floor(Math.random()*COLORS.length)], rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.14, shape:Math.random()>0.5?"rect":"circle", w:Math.random()*Math.PI*2, ws:0.05+Math.random()*0.05 });
+    }
+    function draw() {
+      ctx.clearRect(0,0,canvas!.width,canvas!.height);
+      const rate = frame<80?2:frame<150?3:6;
+      if (frame<220 && frame%rate===0) spawn();
+      for (let i=pieces.length-1;i>=0;i--) {
+        const p=pieces[i]; p.w+=p.ws; p.x+=p.vx+Math.sin(p.w)*0.5; p.y+=p.vy; p.rot+=p.rotV; p.vy+=0.035;
+        if (p.y>canvas!.height+10){pieces.splice(i,1);continue;}
+        ctx.save(); ctx.globalAlpha=0.9; ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color;
+        if (p.shape==="rect") ctx.fillRect(-p.size/2,-p.size*0.35,p.size,p.size*0.7);
+        else { ctx.beginPath(); ctx.arc(0,0,p.size*0.45,0,Math.PI*2); ctx.fill(); }
+        ctx.restore();
+      }
+      frame++; raf=requestAnimationFrame(draw);
+    }
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+  if (!active) return null;
+  return <canvas ref={canvasRef} style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:999 }} />;
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
   const { state, myPets, currentUser, selectPet, toggleMealLog, streak, streakBroken } = usePawzo();
+
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [badgeToast, setBadgeToast]     = useState<string | null>(null);
+  const celebFired = useRef(false);
+
+  useEffect(() => {
+    // Guard: only fire once per mount (prevents React StrictMode double-invoke
+    // from writing localStorage on the first call and finding nothing on second)
+    if (!authed || celebFired.current) return;
+    celebFired.current = true;
+
+    const currentPets     = myPets();
+    const currentStreak   = streakBroken() ? 0 : streak();
+    const petIds          = new Set(currentPets.map((p) => p.id));
+    const currentMemCount = state.memories.filter((m) => petIds.has(m.petId)).length;
+
+    const prevStreak = parseInt(localStorage.getItem("pawzo_cel_streak") ?? "0", 10);
+    const prevMem    = parseInt(localStorage.getItem("pawzo_cel_mem")    ?? "0", 10);
+    const prevPets   = parseInt(localStorage.getItem("pawzo_cel_pets")   ?? "0", 10);
+
+    const crossedStreak = STREAK_MS.filter((m) => prevStreak < m && currentStreak >= m);
+    const crossedMem    = MEM_MS.filter((m)    => prevMem    < m && currentMemCount >= m);
+    const newPetBadge   = currentPets.length >= 1 && prevPets < 1;
+
+    let toastMsg: string | null = null;
+    if (newPetBadge)          toastMsg = "First Pet Added — your Pawzo journey begins! 🐾";
+    if (crossedMem.length)    toastMsg = `${Math.max(...crossedMem)} Memories Created — your gallery is growing! 📸`;
+    if (crossedStreak.length) toastMsg = `${Math.max(...crossedStreak)}-Day Streak — keep it up! 🔥`;
+
+    if (toastMsg) {
+      setShowConfetti(true);
+      setBadgeToast(toastMsg);
+      setTimeout(() => setShowConfetti(false), 6000);
+      setTimeout(() => setBadgeToast(null),    5000);
+    }
+
+    // Dashboard is the sole writer — profile page only reads these keys
+    localStorage.setItem("pawzo_cel_streak", String(currentStreak));
+    localStorage.setItem("pawzo_cel_mem",    String(currentMemCount));
+    localStorage.setItem("pawzo_cel_pets",   String(currentPets.length));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
 
   // today must be declared before useState so the initializer can use it
   const today = todayISO();
@@ -149,6 +232,35 @@ export default function Dashboard() {
 
   return (
     <AppFrame>
+      <DashConfetti active={showConfetti} />
+
+      {/* badge toast — slides down from top */}
+      {badgeToast && (
+        <div style={{
+          position:"fixed", top:0, left:0, right:0, zIndex:1000,
+          display:"flex", justifyContent:"center",
+          animation:"pawzo-toast-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both",
+        }}>
+          <div style={{
+            margin:"10px 16px 0",
+            background:"linear-gradient(135deg,#FDE8EF,#F5D0E8)",
+            borderRadius:18, padding:"13px 20px",
+            boxShadow:"0 8px 28px rgba(192,96,160,0.25)",
+            display:"flex", alignItems:"center", gap:12,
+            border:"1.5px solid #F0C0DC", maxWidth:340, width:"100%",
+          }}>
+            <div style={{ width:38, height:38, borderRadius:12, background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0, boxShadow:"0 2px 8px rgba(192,96,160,0.15)" }}>
+              🎉
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:"#B060A0", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Badge Unlocked!</p>
+              <p style={{ fontSize:13, fontWeight:700, color:"#3D1D54", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{badgeToast.replace(/^[^\s]+ /, "")}</p>
+            </div>
+          </div>
+          <style>{`@keyframes pawzo-toast-in{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        </div>
+      )}
+
       {/* header — no calendar/memory buttons */}
       <header style={{ position: "relative", background: "transparent", padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Link href="/settings" aria-label="Settings" style={{ position: "absolute", left: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
