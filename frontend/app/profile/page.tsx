@@ -160,13 +160,32 @@ export default function ProfilePage() {
 
   const filteredDocs = state.documents.filter(d => d.name.toLowerCase().includes(docSearch.toLowerCase()));
 
-  // streak progress bar — dynamic milestones
-  const STREAK_MILESTONES = getStreakMilestones(currentStreak);
-  const streakMilestoneIdx = STREAK_MILESTONES.findIndex(m => currentStreak < m);
-  const prevStreakMs = streakMilestoneIdx > 0 ? STREAK_MILESTONES[streakMilestoneIdx-1] : 0;
-  const nextStreakMs = streakMilestoneIdx >= 0 ? STREAK_MILESTONES[streakMilestoneIdx] : STREAK_MILESTONES[STREAK_MILESTONES.length-1];
-  const streakBarPct = streakMilestoneIdx < 0 ? 100 : Math.min(100, ((currentStreak - prevStreakMs) / (nextStreakMs - prevStreakMs)) * 100);
+  // ── Streak milestones ──
+  const STREAK_MILESTONES = getStreakMilestones(currentStreak); // full list for the badge column
   const doneStreakCount = STREAK_MILESTONES.filter(m => currentStreak >= m).length;
+
+  // next unreached milestone (drives the "X / Y days to next" label)
+  let nextStreakIdx = STREAK_MILESTONES.findIndex(m => currentStreak < m);
+  if (nextStreakIdx === -1) nextStreakIdx = STREAK_MILESTONES.length - 1;
+  const nextStreakMs = STREAK_MILESTONES[nextStreakIdx];
+
+  // Progress bar = a sliding window of milestones around current progress, so the
+  // fill keeps moving and the window scrolls forward as the streak passes 60, 120…
+  const BAR_WINDOW = 6;
+  let winStart = Math.max(0, nextStreakIdx - 2);
+  const winEnd  = Math.min(STREAK_MILESTONES.length, winStart + BAR_WINDOW);
+  winStart = Math.max(0, winEnd - BAR_WINDOW);
+  const barMs    = STREAK_MILESTONES.slice(winStart, winEnd);
+  const barN     = barMs.length;
+  const barLow   = winStart > 0 ? STREAK_MILESTONES[winStart - 1] : 0; // implicit left edge
+  const barBounds = [barLow, ...barMs]; // value boundaries, evenly spaced across the bar
+  const sClamped = Math.min(Math.max(currentStreak, barLow), barMs[barN - 1]);
+  // fill: walk segments by day-value, but place the result on the even index scale
+  let barSeg = 0;
+  while (barSeg < barN && sClamped >= barBounds[barSeg + 1]) barSeg++;
+  const streakBarPct = barSeg >= barN
+    ? 100
+    : ((barSeg + (sClamped - barBounds[barSeg]) / (barBounds[barSeg + 1] - barBounds[barSeg])) / barN) * 100;
 
   // mem progress bar
   const memMilestoneIdx = MEM_MILESTONES.findIndex(m => memCount < m);
@@ -341,21 +360,27 @@ export default function ProfilePage() {
 
           {/* streak section */}
           <SubLabel>🔥 Streak</SubLabel>
-          <div style={{ marginBottom:10 }}>
+          <div style={{ marginBottom:14 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
               <span style={{ fontSize:10, fontWeight:600, color:"#9B7CA8" }}>Streak journey</span>
-              {streakMilestoneIdx >= 0 && <span style={{ fontSize:9.5, color:"#C0A0C8" }}>{currentStreak} / {nextStreakMs} days to next</span>}
+              <span style={{ fontSize:9.5, color:"#C0A0C8" }}>
+                {currentStreak >= nextStreakMs ? `${currentStreak} days — top streak!` : `${currentStreak} / ${nextStreakMs} days to next`}
+              </span>
             </div>
-            <div style={{ height:5, background:"#F0E8F5", borderRadius:3, position:"relative", margin:"8px 0 4px" }}>
-              <div style={{ height:5, background:"linear-gradient(90deg,#E8A0C0,#C060A0)", borderRadius:3, width:`${streakBarPct}%` }} />
-              {STREAK_MILESTONES.slice(0, 7).map((m, i, arr) => {
-                const pct = arr.length > 1 ? (i / (arr.length - 1)) * 100 : 0;
+            <div style={{ position:"relative", height:5, background:"#F0E8F5", borderRadius:3, margin:"8px 0 4px" }}>
+              <div style={{ position:"absolute", left:0, top:0, height:5, borderRadius:3, width:`${streakBarPct}%`, background:"linear-gradient(90deg,#E8A0C0,#C060A0)", transition:"width 0.4s ease" }} />
+              {barMs.map((m, i) => {
+                const pct = ((i + 1) / barN) * 100;
                 const done = currentStreak >= m;
-                return <div key={m} style={{ position:"absolute", top:"50%", transform:"translateY(-50%)", left:`calc(${pct}% - 4px)`, width:8, height:8, borderRadius:"50%", background: done ? "#C060A0" : "#E0D0EA", border:"2px solid #fff", boxShadow: done ? "0 0 0 3px rgba(192,96,160,0.2)" : "none" }} />;
+                return <div key={m} style={{ position:"absolute", top:"50%", left:`${pct}%`, transform:"translate(-50%,-50%)", width:8, height:8, borderRadius:"50%", background: done ? "#C060A0" : "#E0D0EA", border:"2px solid #fff", boxShadow: done ? "0 0 0 3px rgba(192,96,160,0.2)" : "none" }} />;
               })}
             </div>
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:8.5, color:"#C0A8D0", fontWeight:600 }}>
-              {STREAK_MILESTONES.slice(0, 7).map(m => <span key={m}>{m}d</span>)}
+            <div style={{ position:"relative", height:11 }}>
+              {barMs.map((m, i) => {
+                const pct = ((i + 1) / barN) * 100;
+                const done = currentStreak >= m;
+                return <span key={m} style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", fontSize:8.5, fontWeight: done ? 700 : 600, color: done ? "#C060A0" : "#C0A8D0", whiteSpace:"nowrap" }}>{m}d</span>;
+              })}
             </div>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
