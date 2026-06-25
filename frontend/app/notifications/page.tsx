@@ -7,28 +7,6 @@ import { useState, useEffect, useRef } from "react";
 import { AppFrame, BottomNav, TopBar, T } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, deriveAlerts } from "../lib/store";
 
-/* cute ascending chime using Web Audio API — no external file needed */
-function playCutePetSound() {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const freqs = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
-    freqs.forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t0 = ctx.currentTime + i * 0.13;
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(0.22, t0 + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
-      osc.start(t0);
-      osc.stop(t0 + 0.5);
-    });
-  } catch { /* no AudioContext — silently skip */ }
-}
-
 export default function NotificationsPage() {
   const { ready, authed } = useRequireAuth();
   const { state } = usePawzo();
@@ -42,7 +20,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!ready || !authed || hasPlayedRef.current) return;
     hasPlayedRef.current = true;
-    if (unreadCount > 0 && state.settings.sound) playCutePetSound();
+    // chirp is handled globally in SoundProvider when alerts are first detected
   }, [ready, authed, unreadCount, state.settings.sound]);
 
   if (!ready || !authed) return null;
