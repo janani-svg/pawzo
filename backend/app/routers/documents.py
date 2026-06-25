@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.models.models import Document, User
-from app.schemas.schemas import DocumentCreate, DocumentOut
+from app.schemas.schemas import DocumentCreate, DocumentOut, DocumentRename
 from app.auth import get_current_user
 
 router = APIRouter()
@@ -28,6 +28,25 @@ async def create_document(
 ):
     doc = Document(user_id=current_user.id, **data.model_dump())
     db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+@router.patch("/documents/{doc_id}", response_model=DocumentOut)
+async def rename_document(
+    doc_id: str,
+    data: DocumentRename,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Document).where(Document.id == doc_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc.name = data.name
     await db.commit()
     await db.refresh(doc)
     return doc

@@ -24,10 +24,11 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return data as T;
 }
 
-const get  = <T>(path: string)                  => req<T>("GET",    path);
-const post = <T>(path: string, body?: unknown)  => req<T>("POST",   path, body);
-const put  = <T>(path: string, body?: unknown)  => req<T>("PUT",    path, body);
-const del  =     (path: string)                 => req<void>("DELETE", path);
+const get   = <T>(path: string)                 => req<T>("GET",    path);
+const post  = <T>(path: string, body?: unknown) => req<T>("POST",   path, body);
+const put   = <T>(path: string, body?: unknown) => req<T>("PUT",    path, body);
+const patch = <T>(path: string, body?: unknown) => req<T>("PATCH",  path, body);
+const del   =     (path: string)                => req<void>("DELETE", path);
 
 /* ── Auth ──────────────────────────────────────────────────────────────── */
 export const authApi = {
@@ -138,12 +139,15 @@ export const chatApi = {
     get<ApiChatMessage[]>(`/user/chat/history${pet_id ? `?pet_id=${pet_id}` : ""}`),
   send: (text: string, pet_id?: string, image_base64?: string) =>
     post<{ user_msg: ApiChatMessage; ai_msg: ApiChatMessage }>("/user/chat/send", { text, pet_id, image_base64 }),
+  deleteHistory: (pet_id?: string) =>
+    del(`/user/chat/history${pet_id ? `?pet_id=${pet_id}` : ""}`),
 };
 
 /* ── Documents ──────────────────────────────────────────────────────────── */
 export const documentsApi = {
   list:   () => get<ApiDocument[]>("/user/documents"),
   create: (d: Omit<ApiDocument, "id" | "user_id">) => post<ApiDocument>("/user/documents", d),
+  rename: (id: string, name: string) => patch<ApiDocument>(`/user/documents/${id}`, { name }),
   delete: (id: string) => del(`/user/documents/${id}`),
 };
 

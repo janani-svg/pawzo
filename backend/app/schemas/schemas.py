@@ -458,6 +458,10 @@ class DocumentCreate(BaseModel):
     uploaded_at: str
 
 
+class DocumentRename(BaseModel):
+    name: str
+
+
 class DocumentOut(BaseModel):
     id: str
     user_id: str

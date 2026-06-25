@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppFrame, TopBar, T, IconSpark } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, type Pet } from "../lib/store";
 import { chatApi, type ApiChatMessage } from "../lib/api";
@@ -13,23 +14,38 @@ const PERSONA: Record<string, string> = {
   Reptile: "*slow blink*", Hamster: "*squeak*", "Guinea pig": "*wheek!*",
 };
 
-function suggestionsFor(pet: Pet | null): string[] {
-  if (!pet) return ["What should I feed my pet?", "How often should I groom?", "Is my pet a healthy weight?"];
-  const sp = pet.species;
-  const base = [`What should ${pet.name} eat?`, `Is ${pet.breed || sp} prone to any health issues?`];
-  const bySpecies: Record<string, string[]> = {
-    Dog:     ["How much exercise does my dog need?", "Why is my dog barking a lot?"],
-    Cat:     ["Why is my cat scratching furniture?", "How often should I clean the litter box?"],
-    Bird:    ["What fruits are safe for my bird?", "Why is my bird plucking feathers?"],
-    Rabbit:  ["How much hay does my rabbit need?", "Is my rabbit's cage big enough?"],
-    Fish:    ["How often should I change the tank water?", "What's the ideal water temperature?"],
-    Reptile: ["What basking temperature is best?", "How often should my reptile eat?"],
-  };
-  return [...base, ...(bySpecies[sp] ?? ["How do I keep my pet happy?"])].slice(0, 4);
+const BY_SPECIES: Record<string, string[]> = {
+  Dog:        ["What should I feed my dog?", "How much exercise does my dog need?", "Why is my dog barking a lot?", "Common health issues in dogs?"],
+  Cat:        ["What should I feed my cat?", "Why is my cat scratching furniture?", "How often should I clean the litter box?", "Common health issues in cats?"],
+  Bird:       ["What fruits are safe for my bird?", "Why is my bird plucking feathers?", "What should I feed my bird?", "How do I keep my bird healthy?"],
+  Rabbit:     ["How much hay does my rabbit need?", "What vegetables are safe for rabbits?", "Is my rabbit's cage big enough?", "Common health issues in rabbits?"],
+  Fish:       ["How often should I change the tank water?", "What's the ideal water temperature for fish?", "What should I feed my fish?", "Common fish diseases?"],
+  Reptile:    ["What basking temperature is best?", "How often should my reptile eat?", "What do reptiles eat?", "Common reptile health issues?"],
+  Hamster:    ["What should I feed my hamster?", "How big should a hamster cage be?", "How do I handle my hamster safely?"],
+  "Guinea pig": ["What vegetables can guinea pigs eat?", "How much space do guinea pigs need?", "Do guinea pigs need a companion?"],
+};
+
+function suggestionsFor(pet: Pet | null, allPets: Pet[]): string[] {
+  if (pet) {
+    // Pet-specific mode — questions about this pet
+    const base = [`What should ${pet.name} eat?`, `Is ${pet.breed || pet.species} prone to any health issues?`];
+    return [...base, ...(BY_SPECIES[pet.species] ?? ["How do I keep my pet happy?"])].slice(0, 4);
+  }
+  // General mode — one question per pet the owner has, using their names
+  const questions = [
+    (p: Pet) => `What should ${p.name} eat?`,
+    (p: Pet) => `Is ${p.name} a healthy weight?`,
+    (p: Pet) => `Any health tips for ${p.name}?`,
+    (p: Pet) => `How do I keep ${p.name} happy?`,
+  ];
+  const result = allPets.slice(0, 4).map((p, i) => questions[i % questions.length](p));
+  return result.length > 0
+    ? result
+    : ["What should I feed my pet?", "How do I know if my pet is sick?", "How often should I visit the vet?", "Best diet for a healthy pet?"];
 }
 
 function toMsg(m: ApiChatMessage): Msg {
-  return { id: m.id, role: m.role, text: m.text, image: m.image_data ?? undefined };
+  return { id: m.id, role: m.role as "ai" | "user", text: m.text, image: m.image_data ?? undefined };
 }
 
 /* Compress + resize image to max 1024px, returns base64 JPEG string */
@@ -56,20 +72,28 @@ function compressImage(file: File): Promise<string> {
   });
 }
 
-export default function AIPage() {
+function AIContent() {
+  const params = useSearchParams();
+  const petId  = params.get("pet");
+
   const { ready, authed } = useRequireAuth();
-  const { selectedPet } = usePawzo();
-  const pet = ready ? selectedPet() : null;
+  const { state } = usePawzo();
+
+  // pet-specific mode when ?pet=<id> in URL; general mode when no param
+  const pet: Pet | null = ready && petId
+    ? (state.pets.find((p) => p.id === petId) ?? null)
+    : null;
 
   const [msgs, setMsgs]               = useState<Msg[]>([]);
   const [input, setInput]             = useState("");
   const [typing, setTyping]           = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [pendingImage, setPendingImage] = useState<{ base64: string; preview: string } | null>(null);
-  const endRef   = useRef<HTMLDivElement>(null);
-  const fileRef  = useRef<HTMLInputElement>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const endRef  = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  /* Load chat history */
+  /* Load chat history — jump to bottom instantly once loaded */
   useEffect(() => {
     if (!ready || !authed) return;
     setLoadingHistory(true);
@@ -78,18 +102,23 @@ export default function AIPage() {
         if (history.length > 0) {
           setMsgs(history.map(toMsg));
         } else {
-          const who = pet ? `${pet.name} the ${pet.species.toLowerCase()}` : "your pet";
-          setMsgs([{ id: "welcome", role: "ai", text: `Hi! I'm Pawzo AI 🐾 Ask me anything about ${who}'s care — food, health, behaviour, or send a photo for help!` }]);
+          const welcome = pet
+            ? `Hi! I'm Pawzo AI 🐾 Ask me anything about ${pet.name}'s care — food, health, behaviour, or send a photo for help!`
+            : "Hi! I'm Pawzo AI 🐾 Ask me anything about any pet — food, health, behaviour, or share a photo!";
+          setMsgs([{ id: "welcome", role: "ai", text: welcome }]);
         }
       })
       .catch(() => {
-        setMsgs([{ id: "welcome", role: "ai", text: "Hi! I'm Pawzo AI 🐾 Ask me anything about your pet's care or send a photo!" }]);
+        setMsgs([{ id: "welcome", role: "ai", text: "Hi! I'm Pawzo AI 🐾 Ask me anything about pets or send a photo!" }]);
       })
-      .finally(() => setLoadingHistory(false));
+      .finally(() => {
+        setLoadingHistory(false);
+        requestAnimationFrame(() => {
+          endRef.current?.scrollIntoView({ behavior: "instant" });
+        });
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, pet?.id]);
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+  }, [ready, authed, petId]);
 
   /* Pick image from file input — must be before any early return */
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +136,10 @@ export default function AIPage() {
 
   if (!ready || !authed) return null;
 
+  function scrollToBottom() {
+    requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "instant" }));
+  }
+
   async function send(text: string) {
     const t = text.trim();
     if ((!t && !pendingImage) || typing) return;
@@ -117,6 +150,7 @@ export default function AIPage() {
     setInput("");
     setPendingImage(null);
     setTyping(true);
+    scrollToBottom();
 
     try {
       const res = await chatApi.send(t, pet?.id, img?.base64);
@@ -125,36 +159,75 @@ export default function AIPage() {
         toMsg(res.user_msg),
         toMsg(res.ai_msg),
       ]);
+      scrollToBottom();
     } catch {
       const persona = pet ? (PERSONA[pet.species] ?? "Hi!") : "Hi!";
       setMsgs((m) => [
         ...m,
         { id: `err-${Date.now()}`, role: "ai", text: `${persona} Sorry, I couldn't connect right now. Please try again 🐾` },
       ]);
+      scrollToBottom();
     } finally {
       setTyping(false);
     }
   }
 
-  const suggestions = suggestionsFor(pet);
+  const suggestions = suggestionsFor(pet, state.pets);
+  const placeholder = pet ? `Ask about ${pet.name} or share a photo…` : "Ask about any pet or share a photo…";
+  const statusLabel = pet ? `Helping with ${pet.name}` : "General pet care";
 
   return (
     <AppFrame bg="var(--p-surface-2)">
-      <TopBar back="/dashboard" />
-
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 16px 12px" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 14, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <IconSpark color="#fff" size={24} />
-        </div>
-        <div>
-          <h1 style={{ fontSize: 17, fontWeight: 800, color: T.ink, margin: 0 }}>Pawzo AI</h1>
-          <p style={{ fontSize: 11.5, color: T.success, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.success, display: "inline-block" }} />
-            {pet ? `Helping with ${pet.name}` : "Animal care only"}
-          </p>
+      {/* Sticky header — back nav + title + delete button */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--p-surface-2)" }}>
+        <TopBar back={pet ? "/pet-profile" : "/dashboard"} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 16px 12px" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <IconSpark color="#fff" size={24} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: 17, fontWeight: 800, color: T.ink, margin: 0 }}>Pawzo AI</h1>
+            <p style={{ fontSize: 11.5, color: T.success, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.success, display: "inline-block" }} />
+              {statusLabel}
+            </p>
+          </div>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="pawzo-press"
+            title="Delete chat history"
+            style={{ width: 38, height: 38, borderRadius: 12, border: "1.5px solid var(--p-border)", background: "var(--p-surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={T.gray} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--p-surface)", borderRadius: 20, padding: 24, maxWidth: 320, width: "100%", boxShadow: T.shadowSoft }}>
+            <p style={{ fontSize: 16, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Delete chat history?</p>
+            <p style={{ fontSize: 13.5, color: T.gray, marginBottom: 20 }}>This will permanently delete all messages in this chat. This cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 14, fontWeight: 700, color: T.ink, cursor: "pointer" }}>Cancel</button>
+              <button
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  await chatApi.deleteHistory(pet?.id);
+                  const welcome = pet
+                    ? `Hi! I'm Pawzo AI 🐾 Ask me anything about ${pet.name}'s care — food, health, behaviour, or send a photo for help!`
+                    : "Hi! I'm Pawzo AI 🐾 Ask me anything about any pet — food, health, behaviour, or share a photo!";
+                  setMsgs([{ id: "welcome", role: "ai", text: welcome }]);
+                }}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "none", background: T.danger, fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10, paddingBottom: 16 }}>
@@ -212,7 +285,7 @@ export default function AIPage() {
       <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileChange} />
 
       {/* Input bar */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: T.maxW, background: "var(--p-nav)", backdropFilter: "blur(10px)", borderTop: "1px solid var(--p-border)", padding: "10px 16px max(12px, env(safe-area-inset-bottom))", zIndex: 100 }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: T.maxW, background: "var(--p-bg)", borderTop: "1px solid var(--p-border)", padding: "10px 16px max(12px, env(safe-area-inset-bottom))", zIndex: 100 }}>
 
         {/* Image preview above input */}
         {pendingImage && (
@@ -227,7 +300,6 @@ export default function AIPage() {
         )}
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Camera / upload button */}
           <button
             onClick={() => fileRef.current?.click()}
             className="pawzo-press"
@@ -245,11 +317,10 @@ export default function AIPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send(input)}
-            placeholder={pet ? `Ask about ${pet.name} or share a photo…` : "Ask about your pet or share a photo…"}
+            placeholder={placeholder}
             style={{ flex: 1, height: 46, padding: "0 16px", borderRadius: 23, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 14, outline: "none", color: T.ink }}
           />
 
-          {/* Send button */}
           <button
             onClick={() => send(input)}
             className="pawzo-press"
@@ -264,5 +335,13 @@ export default function AIPage() {
         </div>
       </div>
     </AppFrame>
+  );
+}
+
+export default function AIPage() {
+  return (
+    <Suspense>
+      <AIContent />
+    </Suspense>
   );
 }

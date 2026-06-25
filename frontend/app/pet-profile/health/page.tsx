@@ -169,7 +169,7 @@ function Empty({ text }: { text: string }) {
   return <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 18, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft, marginBottom: 4 }}>{text}</div>;
 }
 function WeightChart({ data, dates }: { data: number[]; dates: string[] }) {
-  const w = 300, h = 110, padL = 6, padR = 6, padT = 6, padB = 30;
+  const w = 300, h = 120, padL = 4, padR = 4, padT = 8, padB = 36;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
   const min = Math.min(...data) - 0.5, max = Math.max(...data) + 0.5;
@@ -177,13 +177,21 @@ function WeightChart({ data, dates }: { data: number[]; dates: string[] }) {
   const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   const area = `${path} L${pts[pts.length - 1][0].toFixed(1)} ${padT + plotH} L${pts[0][0].toFixed(1)} ${padT + plotH} Z`;
   const labelIdx = data.length <= 2 ? [0, data.length - 1] : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+  const lastIdx = labelIdx.length - 1;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}>
       <path d={area} fill="rgba(236,72,153,0.12)" />
       <path d={path} fill="none" stroke="var(--p-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 4 : 2.5} fill="var(--p-primary)" />)}
-      {labelIdx.filter((i) => i < dates.length).map((i) => (
-        <text key={i} x={pts[i][0]} y={h - 4} fontSize="7.5" fill="var(--p-primary)" textAnchor="middle">
+      {labelIdx.filter((i) => i < dates.length).map((i, li) => (
+        <text
+          key={i}
+          x={pts[i][0]}
+          y={h - 6}
+          fontSize="8.5"
+          fill="var(--p-primary)"
+          textAnchor={li === 0 ? "start" : li === lastIdx ? "end" : "middle"}
+        >
           {new Date(dates[i] + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
         </text>
       ))}

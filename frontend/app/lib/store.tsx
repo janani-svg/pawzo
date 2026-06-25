@@ -209,8 +209,9 @@ type Ctx = {
   update:        <K extends CollKey>(coll: K, id: string, patch: Partial<State[K] extends (infer U)[] ? U : never>) => void;
   remove:        <K extends CollKey>(coll: K, id: string) => void;
   toggleMealLog: (petId: string, mealId: string, date: string) => void;
-  addDocument:   (d: Omit<Document, "id">) => Promise<void>;
-  removeDocument:(id: string) => void;
+  addDocument:    (d: Omit<Document, "id">) => Promise<void>;
+  removeDocument: (id: string) => void;
+  renameDocument: (id: string, name: string) => void;
   setVet:        (v: Vet) => void;
   setSettings:   (patch: Partial<Settings>) => void;
   recordActivity: () => void;
@@ -532,6 +533,11 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
     removeDocument: (id) => {
       mutate((s) => ({ ...s, documents: s.documents.filter((d) => d.id !== id) }));
       documentsApi.delete(id).catch(console.error);
+    },
+
+    renameDocument: (id, name) => {
+      mutate((s) => ({ ...s, documents: s.documents.map((d) => d.id === id ? { ...d, name } : d) }));
+      documentsApi.rename(id, name).catch(console.error);
     },
 
     /* ── Settings & Vet ─────────────────────────────────────────────────── */

@@ -105,7 +105,7 @@ export default function PetProfilePage() {
 
       {/* Ask AI */}
       <div style={{ padding: "12px 16px 0" }}>
-        <Link href="/ai" style={{ textDecoration: "none" }}>
+        <Link href={`/ai?pet=${pet.id}`} style={{ textDecoration: "none" }}>
           <div className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--p-surface)", borderRadius: 18, padding: "13px 16px", boxShadow: T.shadowSoft, cursor: "pointer" }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconSpark color="#fff" /></div>
             <div style={{ flex: 1 }}>

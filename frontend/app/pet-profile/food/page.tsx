@@ -64,7 +64,7 @@ export default function FoodPage() {
       <div style={{ padding: "8px 16px 0" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <button className="pawzo-press" style={btn(false)} onClick={() => setForm(EMPTY)}><IconPlus color={T.ink} size={16} /> Add meal</button>
-          <button className="pawzo-press" style={btn(true)} onClick={() => router.push("/ai")}><IconSpark color="#fff" size={16} /> Ask AI</button>
+          <button className="pawzo-press" style={btn(true)} onClick={() => router.push(`/ai?pet=${pet.id}`)}><IconSpark color="#fff" size={16} /> Ask AI</button>
         </div>
 
         {/* add/edit form */}

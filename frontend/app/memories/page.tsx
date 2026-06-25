@@ -4,6 +4,7 @@
    custom folders, search & filter. */
 
 import { useRef, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, T, IconPlus, inputStyle } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fileToDataURL } from "../lib/store";
 
@@ -78,6 +79,7 @@ const Tick = () => (
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function MemoriesPage() {
+  const router = useRouter();
   const { ready, authed } = useRequireAuth();
   const { state, myPets, add, remove, update } = usePawzo();
 
@@ -162,14 +164,19 @@ export default function MemoriesPage() {
   return (
     <AppFrame>
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--p-topbar)", backdropFilter: "blur(8px)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={() => setSearchOpen((o) => !o)} aria-label="Search" className="pawzo-press" style={iconBtn}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={T.grayLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--p-bg)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={() => router.back()} aria-label="Back" className="pawzo-press" style={iconBtn}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: T.ink, margin: 0 }}>Memories ✨</h1>
-        <button onClick={() => setAddOpen(true)} aria-label="Add memory" className="pawzo-press" style={{ ...iconBtn, background: T.pink }}>
-          <IconPlus color="#fff" size={18} />
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setSearchOpen((o) => !o)} aria-label="Search" className="pawzo-press" style={iconBtn}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={T.grayLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button onClick={() => setAddOpen(true)} aria-label="Add memory" className="pawzo-press" style={{ ...iconBtn, background: T.pink }}>
+            <IconPlus color="#fff" size={18} />
+          </button>
+        </div>
       </header>
 
       {/* ── Search bar ──────────────────────────────────────────────── */}
