@@ -63,11 +63,20 @@ export default function ProfilePage() {
     if (!file) return;
     setDocUploading(true);
     try {
-      const fileData = await fileToDataURL(file, 1200);
+      const isImage = file.type.startsWith("image/");
+      let fileData: string;
+      if (isImage) {
+        fileData = await fileToDataURL(file, 1200);
+      } else {
+        fileData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
       const name = file.name.replace(/\.[^.]+$/, "");
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      const cat = ext === "pdf" ? "Medical Report" : "Other";
-      await addDocument({ name, category: cat, fileData, mimeType: file.type, uploadedAt: todayISO() });
+      await addDocument({ name, category: "Other", fileData, mimeType: file.type, uploadedAt: todayISO() });
     } finally {
       setDocUploading(false);
       if (docFileRef.current) docFileRef.current.value = "";
@@ -141,7 +150,7 @@ export default function ProfilePage() {
 
         {/* Document Vault — one unified card */}
         <SectionTitle>Document Vault</SectionTitle>
-        <input ref={docFileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={handleDocUpload} />
+        <input ref={docFileRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,.odt,.rtf" style={{ display: "none" }} onChange={handleDocUpload} />
 
         <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden", marginBottom: 4 }}>
           {/* Upload button — pinned at top */}

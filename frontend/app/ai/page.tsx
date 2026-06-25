@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { AppFrame, TopBar, T, IconSpark } from "../components/pawzo-ui";
+import { useSearchParams, useRouter } from "next/navigation";
+import { AppFrame, T, IconSpark } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, type Pet } from "../lib/store";
 import { chatApi, type ApiChatMessage } from "../lib/api";
 
@@ -84,6 +84,7 @@ function AIContent() {
     ? (state.pets.find((p) => p.id === petId) ?? null)
     : null;
 
+  const router = useRouter();
   const [msgs, setMsgs]               = useState<Msg[]>([]);
   const [input, setInput]             = useState("");
   const [typing, setTyping]           = useState(false);
@@ -178,31 +179,26 @@ function AIContent() {
 
   return (
     <AppFrame bg="var(--p-surface-2)">
-      {/* Sticky header — back nav + title + delete button */}
-      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--p-surface-2)" }}>
-        <TopBar back={pet ? "/pet-profile" : "/dashboard"} />
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 16px 12px" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 14, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <IconSpark color="#fff" size={24} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 17, fontWeight: 800, color: T.ink, margin: 0 }}>Pawzo AI</h1>
-            <p style={{ fontSize: 11.5, color: T.success, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.success, display: "inline-block" }} />
-              {statusLabel}
-            </p>
-          </div>
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="pawzo-press"
-            title="Delete chat history"
-            style={{ width: 38, height: 38, borderRadius: 12, border: "1.5px solid var(--p-border)", background: "var(--p-surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={T.gray} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-          </button>
+      {/* Sticky header — single row: back + icon + title + delete */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--p-surface-2)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={() => router.push(pet ? "/pet-profile" : "/dashboard")} aria-label="Back" className="pawzo-press" style={{ width: 38, height: 38, borderRadius: 12, border: "none", background: "var(--p-surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div style={{ width: 38, height: 38, borderRadius: 12, background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <IconSpark color="#fff" size={20} />
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ fontSize: 15, fontWeight: 800, color: T.ink, margin: 0 }}>Pawzo AI</h1>
+          <p style={{ fontSize: 11, color: T.success, fontWeight: 600, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.success, display: "inline-block" }} />
+            {statusLabel}
+          </p>
+        </div>
+        <button onClick={() => setConfirmDelete(true)} className="pawzo-press" title="Delete chat history" style={{ width: 38, height: 38, borderRadius: 12, border: "1.5px solid var(--p-border)", background: "var(--p-surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.gray} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
       </div>
 
       {/* Delete confirmation dialog */}

@@ -122,8 +122,11 @@ function ExpenseForm({ petId, onAdd, onCancel }: { petId: string; onAdd: (e: { p
     setScanning(true); setScanMsg("Scanning receipt with AI…");
     try {
       const r = await scanReceipt(url);
+      console.log("[OCR raw]", r.raw);
+      console.log("[OCR result]", { amount: r.amount, date: r.date, category: r.category });
       if (r.amount) setAmount(String(r.amount));
       if (r.date) setDate(r.date);
+      if (r.category) setCategory(r.category);
       setScanMsg(r.amount || r.date ? "Auto-filled from receipt ✓ Please confirm." : "Couldn't read it — enter details manually.");
     } catch {
       setScanMsg("Scan unavailable — enter details manually.");

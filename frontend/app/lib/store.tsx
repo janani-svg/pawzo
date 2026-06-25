@@ -808,7 +808,7 @@ export function deriveAlerts(state: State): Alert[] {
       if (mealTimePassed) {
         const minsLate = Math.round((now.getTime() - hhmmToMs(m.time)) / 60000);
         const isSkipped = minsLate > 10;
-        out.push({ id: `meal-${m.id}`, emoji: isSkipped ? pick(MEAL_SKIP_EMOJI, seed) : pick(MEAL_HUNGRY_EMOJI, seed), title: isSkipped ? `${m.name} skipped` : `${pet.name} is hungry!`, body: isSkipped ? `${pet.name}'s ${m.name} was missed! Please feed them as soon as possible.` : pick(MEAL_HUNGRY_BODY, seed)(pet.name, m.name), when: fmtDateTime(hhmmToMs(m.time)), group: "Today", color: isSkipped ? pick(MEAL_SKIP_COLOR, seed) : "#FEF3C7", sortTime: hhmmToMs(m.time), status: isSkipped ? "missed" as const : "upcoming" as const });
+        out.push({ id: `meal-${m.id}`, emoji: isSkipped ? pick(MEAL_SKIP_EMOJI, seed) : pick(MEAL_HUNGRY_EMOJI, seed), title: isSkipped ? `${m.name} skipped — ${pet.name}` : `${pet.name} is hungry!`, body: isSkipped ? `${pet.name}'s ${m.name} was missed! Please feed them as soon as possible.` : pick(MEAL_HUNGRY_BODY, seed)(pet.name, m.name), when: fmtDateTime(hhmmToMs(m.time)), group: "Today", color: isSkipped ? pick(MEAL_SKIP_COLOR, seed) : "#FEF3C7", sortTime: hhmmToMs(m.time), status: isSkipped ? "missed" as const : "upcoming" as const });
       }
       if (log?.done) {
         const fedAtMs = log.fedAt

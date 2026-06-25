@@ -78,6 +78,13 @@ const Tick = () => (
 /*  MAIN PAGE                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
+function fmtMemDate(date: string, long = false) {
+  const d = new Date(date + "T00:00:00");
+  const opts: Intl.DateTimeFormatOptions = { month: long ? "long" : "short", day: "numeric" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString(undefined, opts);
+}
+
 export default function MemoriesPage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
@@ -93,6 +100,8 @@ export default function MemoriesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [folders, setFolders]         = useState<Folder[]>(loadFolders);
+  const [longPressId, setLongPressId] = useState<string | null>(null);
+  const longPressTimer                = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen]   = useState(false);
   const [newFolderName, setNewFolderName]   = useState("");
@@ -160,6 +169,13 @@ export default function MemoriesPage() {
   }
 
   function clearFilters() { setFilterMood(null); setFilterFolder(null); setFilterPet(null); setSearch(""); }
+
+  function startLongPress(id: string) {
+    longPressTimer.current = setTimeout(() => setLongPressId(id), 600);
+  }
+  function cancelLongPress() {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  }
 
   return (
     <AppFrame>
@@ -246,7 +262,15 @@ export default function MemoriesPage() {
                       const mood = moodFor(m.mood);
                       const tags = userTags(m.tags);
                       return (
-                        <div key={m.id} onClick={() => setSelectedId(m.id)} style={{ background: "var(--p-surface)", borderRadius: 20, overflow: "hidden", boxShadow: T.shadowSoft, cursor: "pointer" }}>
+                        <div key={m.id}
+                          onClick={() => setSelectedId(m.id)}
+                          onTouchStart={() => startLongPress(m.id)}
+                          onTouchEnd={cancelLongPress}
+                          onTouchMove={cancelLongPress}
+                          onMouseDown={() => startLongPress(m.id)}
+                          onMouseUp={cancelLongPress}
+                          onMouseLeave={cancelLongPress}
+                          style={{ background: "var(--p-surface)", borderRadius: 20, overflow: "hidden", boxShadow: T.shadowSoft, cursor: "pointer", userSelect: "none" }}>
                           {m.photo && (
                             <div style={{ position: "relative" }}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -268,7 +292,7 @@ export default function MemoriesPage() {
                                 </span>
                               )}
                               {pet && <span style={{ fontSize: 11.5, color: T.gray, fontWeight: 600 }}>· {pet.name}</span>}
-                              {m.timeTaken && <span style={{ fontSize: 11, color: T.grayLight, marginLeft: "auto" }}>{m.timeTaken}</span>}
+                              <span style={{ fontSize: 11, color: T.grayLight, marginLeft: "auto" }}>{fmtMemDate(m.date)}</span>
                             </div>
                             {m.title && <p style={{ fontSize: 15, fontWeight: 800, color: T.ink, margin: "0 0 4px" }}>{m.title}</p>}
                             {m.caption && <p style={{ fontSize: 13, color: T.gray, lineHeight: 1.55, margin: "0 0 8px" }}>&ldquo;{m.caption}&rdquo;</p>}
@@ -406,6 +430,21 @@ export default function MemoriesPage() {
           </>
         )}
       </div>
+
+      {/* ── Long-press delete confirmation ──────────────────────────── */}
+      {longPressId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
+          <div style={{ background: "var(--p-surface)", borderRadius: 22, padding: 24, width: "100%", maxWidth: 320, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontSize: 36, textAlign: "center", marginBottom: 10 }}>🗑️</div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 8px" }}>Delete this memory?</p>
+            <p style={{ fontSize: 13, color: T.gray, textAlign: "center", margin: "0 0 20px" }}>This cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setLongPressId(null)} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { remove("memories", longPressId); setLongPressId(null); }} className="pawzo-press" style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: T.danger, fontSize: 13.5, fontWeight: 800, color: "#fff", cursor: "pointer" }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Add Memory Sheet ─────────────────────────────────────────── */}
       {addOpen && (
@@ -553,9 +592,8 @@ function AddSheet({ pets, defaultPetId, onClose, onSave }: {
 
           <input style={{ ...inputStyle, marginBottom: 10 }} placeholder="Tags: play, beach, nap" value={tags} onChange={(e) => setTags(e.target.value)} />
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            <input style={{ ...inputStyle, flex: 1 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <input style={{ ...inputStyle, width: 100 }} type="time" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} />
+          <div style={{ marginBottom: 20 }}>
+            <input style={{ ...inputStyle, width: "100%" }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
@@ -612,8 +650,7 @@ function DetailSheet({ mem, pet, folders, onClose, onDelete, onToggleFolder }: {
           )}
           <span style={{ fontSize: 12, color: T.gray, fontWeight: 600 }}>{pet.name}</span>
           <span style={{ fontSize: 11.5, color: T.grayLight, marginLeft: "auto" }}>
-            {new Date(mem.date + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
-            {mem.timeTaken ? ` · ${mem.timeTaken}` : ""}
+            {fmtMemDate(mem.date, true)}
           </span>
         </div>
 
@@ -646,9 +683,7 @@ function DetailSheet({ mem, pet, folders, onClose, onDelete, onToggleFolder }: {
           </div>
         )}
 
-        <button onClick={onDelete} style={{ width: "100%", padding: "13px 0", borderRadius: 14, border: "none", background: "#FEE2E2", fontWeight: 800, fontSize: 14, cursor: "pointer", color: "#B91C1C" }}>
-          Delete Memory
-        </button>
+        <p style={{ fontSize: 11.5, color: T.grayLight, textAlign: "center", margin: "8px 0 0", fontStyle: "italic" }}>Hold a memory card to delete it</p>
       </div>
     </Overlay>
   );
