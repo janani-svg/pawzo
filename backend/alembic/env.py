@@ -20,8 +20,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Load DB URL from .env instead of alembic.ini
-config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL", ""))
+# Load DB URL from .env — escape % so configparser doesn't treat it as interpolation
+_db_url = os.getenv("DATABASE_URL", "").replace("%", "%%")
+config.set_main_option("sqlalchemy.url", _db_url)
 
 # Import all models so Alembic can detect schema changes
 from app.db.database import Base
