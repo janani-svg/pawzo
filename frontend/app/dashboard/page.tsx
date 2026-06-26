@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, PawzoLogo, T, IconGear, IconPlus, ChevronRight } from "../components/pawzo-ui";
-import { usePawzo, useRequireAuth, todayISO, appendActivity } from "../lib/store";
+import { usePawzo, useRequireAuth, todayISO, fmtDate, appendActivity } from "../lib/store";
 
 const STREAK_MS  = [2,5,10,30,60,90,120,150,180,210,240,270,300,330,360];
 const MEM_MS     = [1,10,20,30,40,50,100];
@@ -324,8 +324,8 @@ export default function Dashboard() {
 
         {/* Calendar + Memories widgets */}
         <div style={{ display: "flex", gap: 12, padding: "0 16px 12px" }}>
-          <Link href="/calendar" style={{ flex: 1, textDecoration: "none" }}>
-            <div className="pawzo-press" style={{ background: "#BCF4F5", borderRadius: 18, padding: "12px 12px 10px", minHeight: 130 }}>
+          <Link href="/calendar" style={{ flex: 1, textDecoration: "none", display: "flex" }}>
+            <div className="pawzo-press" style={{ background: "#BCF4F5", borderRadius: 18, padding: "12px 12px 10px", minHeight: 130, flex: 1 }}>
               <h3 style={{ fontSize: 13, fontWeight: 800, color: "#175676", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 5 }}>
                 📅 <span>Calendar</span>
                 {upcomingEvents > 0 && <span style={{ background: "#175676", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: 8, padding: "1px 5px", marginLeft: "auto" }}>{upcomingEvents}</span>}
@@ -333,8 +333,8 @@ export default function Dashboard() {
               <MiniCalendar eventDates={state.events.filter(e => pets.some(p => p.id === e.petId)).map(e => e.date)} />
             </div>
           </Link>
-          <Link href="/memories" style={{ flex: 1, textDecoration: "none" }}>
-            <div className="pawzo-press" style={{ background: "#B4EBCA", borderRadius: 18, padding: "12px 12px 10px", minHeight: 130 }}>
+          <Link href="/memories" style={{ flex: 1, textDecoration: "none", display: "flex" }}>
+            <div className="pawzo-press" style={{ background: "#B4EBCA", borderRadius: 18, padding: "12px 12px 10px", minHeight: 130, flex: 1 }}>
               <h3 style={{ fontSize: 13, fontWeight: 800, color: "#1A6B3A", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 5 }}>
                 ✨ <span>Memories</span>
                 {memCount > 0 && <span style={{ background: "#1A6B3A", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: 8, padding: "1px 5px", marginLeft: "auto" }}>{memCount}</span>}
@@ -402,7 +402,7 @@ export default function Dashboard() {
                       <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#B45309", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{e.title}</span>
                       {pet && <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{pet.name}</p>}
                     </div>
-                    <span style={{ fontSize: 11.5, color: "#F59E0B", fontWeight: 600 }}>{e.allDay ? `All day${e.time ? ` · ${e.time}` : ""}` : (e.time || "All day")}</span>
+                    <span style={{ fontSize: 11.5, color: "#F59E0B", fontWeight: 600 }}>{e.allDay ? `All day${e.time ? ` · ${e.time}` : ""}` : (e.time || fmtDate(e.date))}</span>
                   </div>
                 );
               })}
