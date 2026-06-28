@@ -7,18 +7,34 @@ load_dotenv()
 
 from app.db.database import engine, Base
 from app.models import models  # ensure models are registered before create_all
-from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings, chat, documents, alerts, push
-from app.push.scheduler import create_scheduler
+from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings, chat, documents, alerts
+
+try:
+    from app.routers import push as push_router
+    from app.push.scheduler import create_scheduler
+    _push_available = True
+except Exception as _push_err:
+    import logging as _log
+    _log.getLogger(__name__).warning("Push/scheduler not available: %s", _push_err)
+    push_router = None
+    _push_available = False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    scheduler = create_scheduler()
-    scheduler.start()
+    scheduler = None
+    if _push_available:
+        try:
+            scheduler = create_scheduler()
+            scheduler.start()
+        except Exception as e:
+            import logging as _log
+            _log.getLogger(__name__).warning("Scheduler failed to start: %s", e)
     yield
-    scheduler.shutdown(wait=False)
+    if scheduler:
+        scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Pawzo API", version="1.0.0", lifespan=lifespan)
@@ -43,7 +59,8 @@ app.include_router(settings.router,  prefix="/user",  tags=["settings"])
 app.include_router(chat.router,      prefix="/user",  tags=["chat"])
 app.include_router(documents.router, prefix="/user",  tags=["documents"])
 app.include_router(alerts.router,    prefix="/user",  tags=["alerts"])
-app.include_router(push.router,      prefix="/push",  tags=["push"])
+if push_router:
+    app.include_router(push_router.router, prefix="/push", tags=["push"])
 
 
 @app.get("/")
