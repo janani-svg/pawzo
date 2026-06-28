@@ -18,6 +18,9 @@ export default function GrowthPage() {
   const [emoji, setEmoji] = useState("🦴");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayISO());
+  const [logWeightOpen, setLogWeightOpen] = useState(false);
+  const [weightVal, setWeightVal] = useState("");
+  const [weightDate, setWeightDate] = useState(todayISO());
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -37,6 +40,13 @@ export default function GrowthPage() {
     setTitle(""); setDate(todayISO()); setEmoji("🦴"); setOpen(false);
   }
 
+  function saveWeight() {
+    const w = Number(weightVal);
+    if (!w || w <= 0) return;
+    add("weights", { petId: pet!.id, weight: w, date: weightDate, note: "" });
+    setWeightVal(""); setWeightDate(todayISO()); setLogWeightOpen(false);
+  }
+
   return (
     <AppFrame>
       <TopBar title="Growth" back="/pet-profile" />
@@ -47,12 +57,39 @@ export default function GrowthPage() {
           <Stat label="Logs" value={String(weights.length)} delta="weight entries" />
         </div>
 
-        <SectionTitle action={<span style={{ fontSize: 11.5, fontWeight: 700, color: T.grayLight }}>From health logs</span>}>Weight over time</SectionTitle>
+        <SectionTitle>Weight over time</SectionTitle>
         <div style={{ background: "#BCF4F5", borderRadius: 18, padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+            <button onClick={() => setLogWeightOpen((o) => !o)} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.75)", border: "none", borderRadius: 12, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, color: "#175676", cursor: "pointer" }}>
+              <IconPlus color="#175676" size={13} /> Log weight
+            </button>
+          </div>
+          {logWeightOpen && (
+            <div style={{ background: "rgba(255,255,255,0.8)", borderRadius: 14, padding: 14, marginBottom: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <label style={{ flex: 1, fontSize: 11.5, fontWeight: 700, color: "#175676" }}>
+                  Weight ({unit}) *
+                  <div style={{ marginTop: 4 }}>
+                    <input style={{ ...inputStyle, background: "white" }} type="number" step="0.1" min="0" placeholder="e.g. 12.5" value={weightVal} onChange={(e) => setWeightVal(e.target.value)} />
+                  </div>
+                </label>
+                <label style={{ flex: 1, fontSize: 11.5, fontWeight: 700, color: "#175676" }}>
+                  Date
+                  <div style={{ marginTop: 4 }}>
+                    <input style={{ ...inputStyle, background: "white" }} type="date" max={todayISO()} value={weightDate} onChange={(e) => setWeightDate(e.target.value)} />
+                  </div>
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <GhostButton full onClick={() => setLogWeightOpen(false)}>Cancel</GhostButton>
+                <PrimaryButton full onClick={saveWeight}>Save</PrimaryButton>
+              </div>
+            </div>
+          )}
           {weights.length >= 2 ? (
             <Trend data={weights.map((w) => toDisplay(w.weight))} dates={weights.map((w) => w.date)} unit={unit} />
           ) : (
-            <p style={{ fontSize: 13, color: "#175676", textAlign: "center", padding: "8px 0" }}>Log at least two weights in Health to see the growth curve. 📈</p>
+            <p style={{ fontSize: 13, color: "#175676", textAlign: "center", padding: "8px 0" }}>Log at least two weights to see the growth curve. 📈</p>
           )}
         </div>
 

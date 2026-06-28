@@ -73,6 +73,16 @@ const MED_SKIPPED: Array<(n: string, m: string) => Msg> = [
   (n, m) => ({ title: `🐾 ${n} is counting on you!`, body: `Yesterday's ${m} was missed. Fresh start today — let's not skip again!` }),
 ];
 
+/* Daily evening check-in (8 PM) */
+const DAILY_CHECKIN: Array<(n: string) => Msg> = [
+  (n) => ({ title: `🌆 Evening check-in for ${n}!`,   body: `Did ${n} get all their meals today? Open Pawzo to log and keep the streak alive! 🔥` }),
+  (n) => ({ title: `🐾 How's ${n} doing?`,             body: `It's evening — a great time to review ${n}'s day and log any remaining meals.` }),
+  (n) => ({ title: `🍽️ All fed today?`,                body: `Just a friendly nudge — did ${n} get everything on the menu today? Tap to check!` }),
+  (n) => ({ title: `🌇 ${n}'s daily report time!`,    body: `End the day right — open Pawzo to make sure ${n}'s meals and care are all logged.` }),
+  (n) => ({ title: `🔥 Streak on the line, ${n}!`,    body: `Don't let today end with unlogged meals. Tap to log ${n}'s feedings before midnight!` }),
+  (n) => ({ title: `😴 Almost bedtime!`,               body: `Before you wind down — did ${n} get all their meals today? One tap keeps the record perfect.` }),
+];
+
 /* ── Notification helpers ────────────────────────────────────────────── */
 
 function notify(title: string, body: string) {
@@ -129,6 +139,45 @@ function msUntil(hhmm: string, offsetMinutes = 0): number {
 /** ms until tomorrow at HH:MM */
 function msUntilTomorrow(hhmm: string): number {
   return msUntil(hhmm) + 24 * 60 * 60_000;
+}
+
+/* ── Missed-yesterday check (runs on app open) ───────────────────────── */
+
+export function checkMissedYesterday(state: State): void {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+  for (const pet of state.pets) {
+    const petMeals = state.meals.filter((m) => m.petId === pet.id);
+    if (!petMeals.length) continue;
+
+    const missed = petMeals.filter((meal) => {
+      const log = state.mealLogs.find(
+        (l) => l.petId === pet.id && l.mealId === meal.id && l.date === yesterday,
+      );
+      return !log || !log.done;
+    });
+
+    if (missed.length === 0) continue;
+
+    const pools: Array<() => Msg> = [
+      () => ({
+        title: `😿 ${pet.name} missed ${missed.length} meal${missed.length > 1 ? "s" : ""} yesterday`,
+        body:  `${missed.map((m) => m.name).join(", ")} ${missed.length > 1 ? "were" : "was"} not logged. Open Pawzo to stay on track today!`,
+      }),
+      () => ({
+        title: `📋 Yesterday's feeding gap for ${pet.name}`,
+        body:  `${missed.length} of ${petMeals.length} meals were unlogged. Let's keep ${pet.name}'s care history complete!`,
+      }),
+      () => ({
+        title: `⚠️ ${pet.name}'s meals weren't logged`,
+        body:  `It looks like ${missed.map((m) => m.name).join(" & ")} got skipped yesterday. Today's a fresh start — don't miss again! 🐾`,
+      }),
+    ];
+    const { title, body } = pick(pools)();
+    notify(title, body);
+  }
 }
 
 /* ── Main scheduler ──────────────────────────────────────────────────── */
@@ -208,6 +257,24 @@ export function scheduleNotifications(state: State, stateRef: StateRef): () => v
       schedule( msUntilTomorrow("08:00"),  skipped.title, skipped.body, notGiven);
     }
 
+    /* ── Vaccinations ────────────────────────────────────────────────── */
+    for (const vacc of state.vaccinations.filter((v) => v.petId === pet.id && v.nextDue)) {
+      if (vacc.nextDue === tomorrow) {
+        schedule(
+          msUntil("09:00"),
+          `💉 ${pet.name}'s ${vacc.name} is due tomorrow!`,
+          `Book the appointment now — ${pet.name}'s ${vacc.name} vaccination is scheduled for tomorrow.`,
+        );
+      }
+      if (vacc.nextDue === today) {
+        schedule(
+          msUntil("09:00"),
+          `🚨 Vaccination due today!`,
+          `${pet.name}'s ${vacc.name} is due today. Open Pawzo to log it and keep their health on track!`,
+        );
+      }
+    }
+
     /* ── Events ──────────────────────────────────────────────────────── */
     for (const event of state.events.filter((e) => e.petId === pet.id)) {
       const eventTime = event.time || "09:00";
@@ -242,6 +309,40 @@ export function scheduleNotifications(state: State, stateRef: StateRef): () => v
           notDone);
       }
     }
+  }
+
+  /* ── 8 PM daily check-in ──────────────────────────────────────────── */
+  if (state.pets.length > 0) {
+    const petNames = state.pets.length === 1
+      ? state.pets[0].name
+      : state.pets.slice(0, 2).map((p) => p.name).join(" & ");
+
+    const anyUnfed = () =>
+      stateRef.current.pets.some((pet) =>
+        stateRef.current.meals
+          .filter((m) => m.petId === pet.id)
+          .some(
+            (meal) =>
+              !stateRef.current.mealLogs.find(
+                (l) => l.petId === pet.id && l.mealId === meal.id && l.date === today && l.done,
+              ),
+          ),
+      );
+
+    const msg = pick(DAILY_CHECKIN)(petNames);
+    schedule(msUntil("20:00"), msg.title, msg.body, anyUnfed);
+  }
+
+  /* ── Post pet list to SW for background sync ───────────────────────── */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg?.active) {
+        reg.active.postMessage({
+          type: "STORE_SCHEDULE",
+          payload: { pets: state.pets.map((p) => ({ id: p.id, name: p.name })) },
+        });
+      }
+    }).catch(() => {});
   }
 
   return () => timers.forEach(clearTimeout);

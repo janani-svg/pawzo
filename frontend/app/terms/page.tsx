@@ -28,7 +28,7 @@ export default function TermsPage() {
 
         <Section title="4. Your account">
           You must provide accurate information when signing up. You are responsible for keeping your password confidential and for all activity under your account. If you suspect unauthorised access, contact us immediately at{" "}
-          <a href="mailto:pawzocare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzocare@gmail.com</a>.
+          <a href="mailto:pawzopetcare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzopetcare@gmail.com</a>.
           You must be at least 13 years old to use Pawzo.
         </Section>
 
@@ -66,7 +66,7 @@ export default function TermsPage() {
 
         <Section title="12. Contact">
           For any questions about these Terms, email us at{" "}
-          <a href="mailto:pawzocare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzocare@gmail.com</a>.
+          <a href="mailto:pawzopetcare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzopetcare@gmail.com</a>.
         </Section>
 
         {fromSignup && (

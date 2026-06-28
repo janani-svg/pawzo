@@ -128,8 +128,9 @@ export default function Dashboard() {
       return { type: "meal" as const, id: m.id, petId: m.petId, petName: pet.name, mealName: m.name, label: `${m.name} · ${pet.name}`, time: m.time, done: !!log?.done };
     });
   const todaysEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && (e.allDay ? e.date <= today : e.date === today));
-  const todaysVets = state.health.filter((h) => h.kind === "vet" && h.date === today && pets.some((p) => p.id === h.petId));
-  const activeMeds = state.health.filter((h) => h.kind === "medication" && h.active && pets.some((p) => p.id === h.petId));
+  const todaysVets      = state.health.filter((h) => h.kind === "vet" && h.date === today && pets.some((p) => p.id === h.petId));
+  const activeMeds      = state.health.filter((h) => h.kind === "medication" && h.active && pets.some((p) => p.id === h.petId));
+  const todaysVaccines  = state.vaccinations.filter((v) => v.nextDue === today && pets.some((p) => p.id === v.petId));
 
   const toggleDone = (key: string) =>
     setDoneItems((s) => {
@@ -184,6 +185,11 @@ export default function Dashboard() {
     (p, m) => `🌸 Medicine given! ${p} is one step closer to full health!`,
     (p, m) => `✨ ${p}'s ${m} is done for today. Consistency is the key to recovery!`,
   ];
+  const VACC_DONE: Array<(p: string, v: string) => string> = [
+    (p, v) => `💉 ${p}'s ${v} vaccine is done! Great job staying on top of their health!`,
+    (p, v) => `🌟 Vaccination complete! ${p} is now protected. You're an amazing pet parent!`,
+    (p, v) => `🐾 ${p} got their ${v} shot! Keeping them healthy one vaccine at a time!`,
+  ];
 
   const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -215,6 +221,12 @@ export default function Dashboard() {
           const pet = pets.find((p) => p.id === med.petId);
           appendActivity({ icon: "💊", title: `${med.title} given`, body: `${pet?.name ?? "Pet"}'s ${med.title} was administered.`, timestamp: now, status: "completed" });
         }
+      } else if (key.startsWith("vacc-")) {
+        const vacc = todaysVaccines.find((v) => v.id === key.replace("vacc-", ""));
+        if (vacc) {
+          const pet = pets.find((p) => p.id === vacc.petId);
+          appendActivity({ icon: "💉", title: `${vacc.name} vaccination`, body: `${pet?.name ?? "Pet"}'s ${vacc.name} vaccination was marked as done.`, timestamp: now, status: "completed" });
+        }
       }
       if (onDone) onDone();
     }
@@ -222,12 +234,13 @@ export default function Dashboard() {
   const memCount = state.memories.filter((mm) => pets.some((p) => p.id === mm.petId)).length;
   const upcomingEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && e.date >= today && !doneItems.has(`event-${e.id}`)).length;
 
-  const totalScheduleItems = todaysMeals.length + todaysEvents.length + todaysVets.length + activeMeds.length;
+  const totalScheduleItems = todaysMeals.length + todaysEvents.length + todaysVets.length + activeMeds.length + todaysVaccines.length;
   const completedScheduleItems =
     todaysMeals.filter((m) => m.done).length +
     todaysEvents.filter((e) => doneItems.has(`event-${e.id}`)).length +
     todaysVets.filter((h) => doneItems.has(`vet-${h.id}`)).length +
-    activeMeds.filter((h) => doneItems.has(`med-${h.id}`)).length;
+    activeMeds.filter((h) => doneItems.has(`med-${h.id}`)).length +
+    todaysVaccines.filter((v) => doneItems.has(`vacc-${v.id}`)).length;
   const allScheduleDone = totalScheduleItems > 0 && completedScheduleItems === totalScheduleItems;
 
   return (
@@ -374,7 +387,7 @@ export default function Dashboard() {
         {/* Today's Schedule */}
         <section style={{ background: "#CCE6F4", borderRadius: 20, margin: "0 16px", padding: 16 }}>
           <h3 style={{ fontSize: 17, fontWeight: 800, color: "#175676", margin: "0 0 14px" }}>📋 Today&apos;s Schedule</h3>
-          {todaysMeals.length === 0 && todaysEvents.length === 0 && todaysVets.length === 0 && activeMeds.length === 0 ? (
+          {todaysMeals.length === 0 && todaysEvents.length === 0 && todaysVets.length === 0 && activeMeds.length === 0 && todaysVaccines.length === 0 ? (
             <p style={{ fontSize: 13, color: "#4BA3C3", textAlign: "center", padding: "10px 0" }}>
               Nothing scheduled yet. Add meals or events to see them here. 🗓️
             </p>
@@ -435,6 +448,23 @@ export default function Dashboard() {
                       <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#7C3AED", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{h.title}</span>
                       {pet && <p style={{ fontSize: 11, color: "#8B5CF6", margin: 0 }}>{pet.name}{h.detail ? ` · ${h.detail}` : ""}</p>}
                     </div>
+                  </div>
+                );
+              })}
+              {todaysVaccines.map((v) => {
+                const done = doneItems.has(`vacc-${v.id}`);
+                const pet = pets.find((p) => p.id === v.petId);
+                return (
+                  <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: done ? "#FDF2F8" : "#FEF9C3", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <button onClick={() => handleToggleDone(`vacc-${v.id}`, () => fireEncouraging("💉 Vaccination logged!", pick(VACC_DONE)(pet?.name ?? "your pet", v.name)))} style={{ width: 22, height: 22, border: `2px solid ${done ? "#F472B6" : "#D97706"}`, background: done ? "#F472B6" : "transparent", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0 }} aria-label="Toggle vaccination">
+                      {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </button>
+                    <span style={{ fontSize: 18 }}>💉</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, color: done ? "#9CA3AF" : "#92400E", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{v.name}</span>
+                      {pet && <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>{pet.name}{v.clinic ? ` · ${v.clinic}` : ""}</p>}
+                    </div>
+                    {!done && <span style={{ fontSize: 10, fontWeight: 700, color: "#D97706", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, padding: "2px 7px", flexShrink: 0 }}>Due today</span>}
                   </div>
                 );
               })}

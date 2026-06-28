@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePawzo } from "../lib/store";
-import { scheduleNotifications } from "../lib/notif-scheduler";
+import { scheduleNotifications, checkMissedYesterday } from "../lib/notif-scheduler";
 
 export default function NotificationScheduler() {
   const { state } = usePawzo();
@@ -14,7 +14,14 @@ export default function NotificationScheduler() {
   // One-time setup: register SW + request permission + arm midnight reset
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        // Register periodic background sync (Chrome/Edge, fires ~daily when app is closed)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ps = (reg as any).periodicSync;
+        if (ps) {
+          ps.register("daily-reminder", { minInterval: 24 * 60 * 60 * 1000 }).catch(() => {});
+        }
+      }).catch(() => {});
     }
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission();
@@ -59,6 +66,14 @@ export default function NotificationScheduler() {
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, []);
 
+  // Check for missed meals from yesterday — fires once when pets first load
+  useEffect(() => {
+    if (!state.pets.length || !state.meals.length) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    checkMissedYesterday(stateRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!state.pets.length]);
+
   // Re-schedule whenever pets, meals, events, health, logs, or push setting change
   useEffect(() => {
     if (!state.pets.length) return;
@@ -71,6 +86,7 @@ export default function NotificationScheduler() {
     state.events,
     state.health,
     state.mealLogs,
+    state.vaccinations ?? [],
     state.settings.push,
     today,
   ]);

@@ -20,9 +20,16 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Load DB URL from .env — escape % so configparser doesn't treat it as interpolation
-_db_url = os.getenv("DATABASE_URL", "").replace("%", "%%")
-config.set_main_option("sqlalchemy.url", _db_url)
+# Build DB URL object from parts (handles special characters in password safely)
+from sqlalchemy.engine import URL as _URL
+_db_url = _URL.create(
+    drivername="postgresql+asyncpg",
+    username=os.getenv("DB_USER") or "postgres",
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST") or "localhost",
+    port=int(os.getenv("DB_PORT") or 5432),
+    database=os.getenv("DB_NAME") or "pawzo",
+)
 
 # Import all models so Alembic can detect schema changes
 from app.db.database import Base
@@ -65,10 +72,12 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    from sqlalchemy.ext.asyncio import create_async_engine
+    is_supabase = (os.getenv("DB_HOST", "")).endswith("supabase.com")
+    connectable = create_async_engine(
+        _db_url,
         poolclass=pool.NullPool,
+        connect_args={"ssl": "require"} if is_supabase else {},
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

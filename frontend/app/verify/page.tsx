@@ -29,9 +29,12 @@ export default function VerifyPage() {
 
   const code = digits.join("");
 
-  /* If already verified, skip straight to dashboard. */
+  /* If already verified, skip to onboarding (first time) or dashboard (returning). */
   useEffect(() => {
-    if (ready && authed && state.emailVerified) router.replace("/dashboard");
+    if (ready && authed && state.emailVerified) {
+      const onboarded = localStorage.getItem("pawzo:onboarded");
+      router.replace(onboarded ? "/dashboard" : "/onboarding");
+    }
   }, [ready, authed, state.emailVerified, router]);
 
   /* Send a code automatically the first time the page is ready. */
@@ -97,7 +100,8 @@ export default function VerifyPage() {
       inputs.current[0]?.focus();
       return;
     }
-    router.push("/dashboard");
+    const onboarded = localStorage.getItem("pawzo:onboarded");
+    router.push(onboarded ? "/dashboard" : "/onboarding");
   }
 
   if (!ready) return null;

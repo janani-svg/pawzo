@@ -8,8 +8,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, Pill, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil } from "../../lib/store";
+import type { Meal, MealLog } from "../../lib/store";
 
-type Form = null | { kind: "vaccine" | "weight" | "vet" | "medication" };
+type Form = null | { kind: "vaccine" | "vet" | "medication" };
 
 export default function HealthPage() {
   const router = useRouter();
@@ -21,14 +22,11 @@ export default function HealthPage() {
   if (!ready || !authed) return null;
   if (!pet) { router.replace("/pet-profile/new"); return null; }
 
-  const unit = state.settings.units === "metric" ? "kg" : "lb";
-  const toDisplay = (kg: number) => state.settings.units === "imperial" ? +(kg * 2.205).toFixed(1) : kg;
-
   const vaccines = state.vaccinations.filter((v) => v.petId === pet.id).sort((a, b) => (a.nextDue || "").localeCompare(b.nextDue || ""));
-  const weights = state.weights.filter((w) => w.petId === pet.id).sort((a, b) => a.date.localeCompare(b.date));
   const vets = state.health.filter((h) => h.petId === pet.id && h.kind === "vet").sort((a, b) => b.date.localeCompare(a.date));
   const meds = state.health.filter((h) => h.petId === pet.id && h.kind === "medication");
-  const latest = weights[weights.length - 1]?.weight;
+  const petMeals = state.meals.filter((m) => m.petId === pet.id);
+  const petMealLogs = state.mealLogs.filter((l) => l.petId === pet.id);
 
   return (
     <AppFrame>
@@ -51,22 +49,9 @@ export default function HealthPage() {
           </div>
         )}
 
-        {/* weight */}
-        <SectionTitle action={<AddChip onClick={() => setForm({ kind: "weight" })} label="Log weight" />}>Weight matrix</SectionTitle>
-        {form?.kind === "weight" && <WeightForm unit={unit} onCancel={() => setForm(null)} onSave={(d) => { add("weights", { ...d, petId: pet.id }); setForm(null); }} />}
-        <div style={{ background: "var(--p-surface)", borderRadius: 18, padding: 16, boxShadow: T.shadowSoft }}>
-          {weights.length === 0 ? (
-            <p style={{ fontSize: 13, color: T.grayLight, textAlign: "center" }}>No weight logged yet. Tap “Log weight”.</p>
-          ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 26, fontWeight: 800, color: T.ink }}>{latest != null ? toDisplay(latest) : "—"}</span>
-                <span style={{ fontSize: 13, color: T.gray, fontWeight: 600 }}>{unit} latest</span>
-              </div>
-              {weights.length >= 2 ? <WeightChart data={weights.map((w) => toDisplay(w.weight))} dates={weights.map((w) => w.date)} /> : <p style={{ fontSize: 12, color: T.grayLight }}>Log one more to see the trend chart.</p>}
-            </>
-          )}
-        </div>
+        {/* health status */}
+        <SectionTitle>Health Status</SectionTitle>
+        <NutritionStatus meals={petMeals} mealLogs={petMealLogs} />
 
         {/* clinic ledger */}
         <SectionTitle>Health clinic ledger</SectionTitle>
@@ -105,19 +90,6 @@ function VaccineForm({ onSave, onCancel }: { onSave: (d: { name: string; date: s
       </div>
       <input style={fi} placeholder="Clinic (optional)" value={clinic} onChange={(e) => setClinic(e.target.value)} />
       <Actions onCancel={onCancel} onSave={() => name.trim() && onSave({ name: name.trim(), date, nextDue, clinic: clinic.trim() })} />
-    </FormCard>
-  );
-}
-function WeightForm({ unit, onSave, onCancel }: { unit: string; onSave: (d: { weight: number; date: string; note: string }) => void; onCancel: () => void }) {
-  const [weight, setWeight] = useState(""); const [date, setDate] = useState(todayISO()); const [note, setNote] = useState("");
-  return (
-    <FormCard>
-      <div style={{ display: "flex", gap: 10 }}>
-        <Labeled label={`Weight (${unit}) *`}><input style={fi} type="number" step="0.1" min="0" placeholder="12.5" value={weight} onChange={(e) => setWeight(e.target.value)} /></Labeled>
-        <Labeled label="Date"><input style={fi} type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} /></Labeled>
-      </div>
-      <input style={fi} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-      <Actions onCancel={onCancel} onSave={() => Number(weight) > 0 && onSave({ weight: Number(weight), date, note: note.trim() })} />
     </FormCard>
   );
 }
@@ -168,34 +140,115 @@ function AddBlock({ emoji, label, onClick }: { emoji: string; label: string; onC
 function Empty({ text }: { text: string }) {
   return <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 18, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft, marginBottom: 4 }}>{text}</div>;
 }
-function WeightChart({ data, dates }: { data: number[]; dates: string[] }) {
-  const w = 300, h = 120, padL = 4, padR = 4, padT = 8, padB = 36;
-  const plotW = w - padL - padR;
-  const plotH = h - padT - padB;
-  const min = Math.min(...data) - 0.5, max = Math.max(...data) + 0.5;
-  const pts = data.map((v, i) => [padL + (i * plotW) / Math.max(1, data.length - 1), padT + plotH - ((v - min) / (max - min || 1)) * plotH]);
-  const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
-  const area = `${path} L${pts[pts.length - 1][0].toFixed(1)} ${padT + plotH} L${pts[0][0].toFixed(1)} ${padT + plotH} Z`;
-  const labelIdx = data.length <= 2 ? [0, data.length - 1] : [0, Math.floor((data.length - 1) / 2), data.length - 1];
-  const lastIdx = labelIdx.length - 1;
+const fi: React.CSSProperties = { ...inputStyle };
+
+const MACRO_COLORS = { protein: "#EC4899", fat: "#F59E0B", carbs: "#34D399", fiber: "#A78BFA" };
+
+function estimateMacros(name: string, food: string): { protein: number; fat: number; carbs: number; fiber: number } {
+  const t = `${name} ${food}`.toLowerCase();
+  if (/chicken|beef|fish|salmon|tuna|turkey|lamb|duck|egg|pork|meat|venison|rabbit|shrimp/.test(t))
+    return { protein: 47, fat: 33, carbs: 14, fiber: 6 };
+  if (/oil|fat|butter|cream|cheese|bacon/.test(t))
+    return { protein: 5, fat: 82, carbs: 9, fiber: 4 };
+  if (/rice|pasta|bread|oat|wheat|corn|grain|potato|pea|lentil|quinoa/.test(t))
+    return { protein: 9, fat: 4, carbs: 76, fiber: 11 };
+  if (/carrot|broccoli|spinach|kale|apple|blueberry|banana|pumpkin|vegetable|veg|fruit/.test(t))
+    return { protein: 7, fat: 2, carbs: 73, fiber: 18 };
+  if (/treat|snack|biscuit|cookie|jerky|chew/.test(t))
+    return { protein: 18, fat: 28, carbs: 44, fiber: 10 };
+  if (/kibble|dry|pellet|royal.?canin|hills|science|purina|acana|orijen/.test(t))
+    return { protein: 26, fat: 13, carbs: 52, fiber: 9 };
+  if (/wet|canned|can|pate|pouche/.test(t))
+    return { protein: 37, fat: 27, carbs: 27, fiber: 9 };
+  return { protein: 28, fat: 18, carbs: 44, fiber: 10 };
+}
+
+function NutritionStatus({ meals, mealLogs }: { meals: Meal[]; mealLogs: MealLog[] }) {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const minDate = sevenDaysAgo.toISOString().split("T")[0];
+  const fedLogs = mealLogs.filter((l) => l.date >= minDate && l.done);
+
+  if (meals.length === 0) {
+    return <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 18, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft }}>Add meals in the Food page to see nutrition status.</div>;
+  }
+  if (fedLogs.length === 0) {
+    return <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 18, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft }}>No meals logged in the last 7 days — use the Food page to track feedings.</div>;
+  }
+
+  let totalProtein = 0, totalFat = 0, totalCarbs = 0, totalFiber = 0, totalKcal = 0;
+  fedLogs.forEach((log) => {
+    const meal = meals.find((m) => m.id === log.mealId);
+    if (!meal) return;
+    const kcal = meal.kcal || 100;
+    const macros = estimateMacros(meal.name, meal.food);
+    totalProtein += kcal * macros.protein / 100;
+    totalFat     += kcal * macros.fat     / 100;
+    totalCarbs   += kcal * macros.carbs   / 100;
+    totalFiber   += kcal * macros.fiber   / 100;
+    totalKcal    += meal.kcal || 0;
+  });
+
+  const grandTotal = totalProtein + totalFat + totalCarbs + totalFiber || 1;
+  const pPct = Math.round((totalProtein / grandTotal) * 100);
+  const fPct = Math.round((totalFat     / grandTotal) * 100);
+  const cPct = Math.round((totalCarbs   / grandTotal) * 100);
+  const fiPct = 100 - pPct - fPct - cPct;
+  const avgKcal = Math.round(totalKcal / 7);
+
+  const slices = [
+    { key: "protein", val: totalProtein, pct: pPct,  color: MACRO_COLORS.protein, label: "Protein" },
+    { key: "fat",     val: totalFat,     pct: fPct,  color: MACRO_COLORS.fat,     label: "Fats"    },
+    { key: "carbs",   val: totalCarbs,   pct: cPct,  color: MACRO_COLORS.carbs,   label: "Carbs"   },
+    { key: "fiber",   val: totalFiber,   pct: fiPct, color: MACRO_COLORS.fiber,   label: "Fiber"   },
+  ];
+
+  const cx = 70, cy = 70, R = 60, ir = 38;
+  let a = -Math.PI / 2;
+  const arcs = slices.map((s) => {
+    const sweep = (s.val / grandTotal) * 2 * Math.PI;
+    const x1 = cx + R * Math.cos(a),  y1 = cy + R * Math.sin(a);
+    const end = a + sweep;
+    const x2 = cx + R * Math.cos(end), y2 = cy + R * Math.sin(end);
+    const ix1 = cx + ir * Math.cos(end), iy1 = cy + ir * Math.sin(end);
+    const ix2 = cx + ir * Math.cos(a),   iy2 = cy + ir * Math.sin(a);
+    const lg = sweep > Math.PI ? 1 : 0;
+    const pathD = `M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 ${lg} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${ix1.toFixed(1)} ${iy1.toFixed(1)} A${ir} ${ir} 0 ${lg} 0 ${ix2.toFixed(1)} ${iy2.toFixed(1)} Z`;
+    a = end;
+    return { ...s, pathD };
+  });
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}>
-      <path d={area} fill="rgba(236,72,153,0.12)" />
-      <path d={path} fill="none" stroke="var(--p-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 4 : 2.5} fill="var(--p-primary)" />)}
-      {labelIdx.filter((i) => i < dates.length).map((i, li) => (
-        <text
-          key={i}
-          x={pts[i][0]}
-          y={h - 6}
-          fontSize="8.5"
-          fill="var(--p-primary)"
-          textAnchor={li === 0 ? "start" : li === lastIdx ? "end" : "middle"}
-        >
-          {new Date(dates[i] + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-        </text>
-      ))}
-    </svg>
+    <div style={{ background: "var(--p-surface)", borderRadius: 18, padding: 16, boxShadow: T.shadowSoft }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <svg viewBox="0 0 140 140" style={{ width: 130, height: 130, flexShrink: 0 }}>
+          {arcs.map((arc) => <path key={arc.key} d={arc.pathD} fill={arc.color} />)}
+          {avgKcal > 0
+            ? <>
+                <text x={cx} y={cy - 5} textAnchor="middle" fontSize="16" fontWeight="800" fill="var(--p-ink)">{avgKcal}</text>
+                <text x={cx} y={cy + 9} textAnchor="middle" fontSize="7.5" fontWeight="600" fill={T.gray}>kcal / day</text>
+              </>
+            : <text x={cx} y={cy + 4} textAnchor="middle" fontSize="9" fill={T.gray}>nutrition</text>
+          }
+        </svg>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+          {slices.map((s) => (
+            <div key={s.key}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, flex: 1 }}>{s.label}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 800, color: s.color }}>{s.pct}%</span>
+              </div>
+              <div style={{ height: 5, background: "var(--p-border)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: `${s.pct}%`, height: "100%", background: s.color, borderRadius: 4, transition: "width 0.4s ease" }} />
+              </div>
+            </div>
+          ))}
+          <p style={{ fontSize: 10.5, color: T.grayLight, margin: "2px 0 0" }}>
+            {fedLogs.length} meal{fedLogs.length !== 1 ? "s" : ""} fed · last 7 days
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
-const fi: React.CSSProperties = { ...inputStyle };

@@ -15,7 +15,7 @@ export default function PrivacyPage() {
 
         <Section title="1. Who we are">
           Pawzo is a pet care companion app that helps you track your pet&apos;s meals, health records, growth, expenses, memories, and calendar events. We are operated as a personal project. For any questions, contact us at{" "}
-          <a href="mailto:pawzocare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzocare@gmail.com</a>.
+          <a href="mailto:pawzopetcare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzopetcare@gmail.com</a>.
         </Section>
 
         <Section title="2. What data we collect">
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
 
         <Section title="7. Your rights">
           You can update or delete your pet data at any time from within the app. To request deletion of your entire account and all associated data, email us at{" "}
-          <a href="mailto:pawzocare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzocare@gmail.com</a>{" "}
+          <a href="mailto:pawzopetcare@gmail.com" style={{ color: T.pink, fontWeight: 700 }}>pawzopetcare@gmail.com</a>{" "}
           and we will process it within 30 days.
         </Section>
 

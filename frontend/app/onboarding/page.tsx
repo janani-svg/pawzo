@@ -38,7 +38,6 @@ const TOUR = [
 export default function Onboarding() {
   const router = useRouter();
   const { ready } = useRequireAuth();
-  const { setSettings } = usePawzo();
   const [step, setStep] = useState(0);
   const [owner, setOwner] = useState<boolean | null>(null);
   const [petType, setPetType] = useState("Dog");
@@ -54,7 +53,7 @@ export default function Onboarding() {
 
   function finish() {
     try { localStorage.setItem("pawzo:lastRegion", region); } catch {}
-    setSettings({}); // region stored as hint; settings unchanged
+    try { localStorage.setItem("pawzo:onboarded", "1"); } catch {}
     const finalType = petType === "Other" ? (otherType.trim() || "Other") : petType;
     try { localStorage.setItem("pawzo:lastPetType", finalType); } catch {}
     router.push(owner === false ? "/dashboard" : "/pet-profile/new");
