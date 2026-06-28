@@ -56,6 +56,31 @@ async function showDailyReminder() {
   } catch { /* silent */ }
 }
 
+/* ── Web Push (server-sent notifications via VAPID) ─────────────────── */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data?.json() ?? {};
+  } catch {
+    data = { title: "Pawzo", body: event.data?.text() ?? "" };
+  }
+
+  const title = data.title ?? "Pawzo 🐾";
+  const body  = data.body  ?? "";
+  const url   = data.url   ?? "/dashboard";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon:             "/favicon.ico",
+      badge:            "/favicon.ico",
+      tag:              "pawzo-server-push",
+      data:             { url },
+      requireInteraction: false,
+    })
+  );
+});
+
 /* ── Notification click ──────────────────────────────────────────────── */
 self.addEventListener("notificationclick", (event) => {
   const action = event.action;

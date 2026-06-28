@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePawzo } from "../lib/store";
 import { scheduleNotifications, checkMissedYesterday } from "../lib/notif-scheduler";
+import { subscribeToPush } from "../lib/push";
 
 export default function NotificationScheduler() {
   const { state } = usePawzo();
@@ -11,7 +12,7 @@ export default function NotificationScheduler() {
 
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
 
-  // One-time setup: register SW + request permission + arm midnight reset
+  // One-time setup: register SW + request permission + subscribe to Web Push + arm midnight reset
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").then((reg) => {
@@ -24,7 +25,15 @@ export default function NotificationScheduler() {
       }).catch(() => {});
     }
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
+      Notification.requestPermission().then((perm) => {
+        if (perm === "granted") {
+          const token = localStorage.getItem("pawzo:token") ?? "";
+          if (token) subscribeToPush(token);
+        }
+      });
+    } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      const token = localStorage.getItem("pawzo:token") ?? "";
+      if (token) subscribeToPush(token);
     }
 
     const now = new Date();

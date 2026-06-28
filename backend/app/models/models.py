@@ -33,7 +33,8 @@ class User(Base):
     settings      = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     activity      = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
     documents     = relationship("Document", back_populates="user", cascade="all, delete-orphan")
-    alert_records = relationship("AlertRecord", back_populates="user", cascade="all, delete-orphan")
+    alert_records      = relationship("AlertRecord", back_populates="user", cascade="all, delete-orphan")
+    push_subscriptions = relationship("PushSubscription", back_populates="user", cascade="all, delete-orphan")
 
 
 class Pet(Base):
@@ -273,3 +274,16 @@ class AlertRecord(Base):
     expires_at   = Column(BigInteger, nullable=False)
 
     user = relationship("User", back_populates="alert_records")
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id         = Column(String, primary_key=True, default=new_id)
+    user_id    = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    endpoint   = Column(Text, nullable=False, unique=True)
+    p256dh     = Column(Text, nullable=False)
+    auth       = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="push_subscriptions")
