@@ -101,17 +101,18 @@ export default function EnvironmentPage() {
   const snapPositions = useRef<Record<string, number>>({});
 
   const pet = ready ? selectedPet() : null;
-  if (!ready || !authed) return null;
-  if (!pet) { router.replace("/pet-profile/new"); return null; }
 
-  const tasks = state.environment
-    .filter((t) => t.petId === pet.id)
-    .sort((a, b) => {
-      const sa = STATUS_ORDER[envTaskStatus(a)], sb = STATUS_ORDER[envTaskStatus(b)];
-      return sa !== sb ? sa - sb : (a.nextDue || "").localeCompare(b.nextDue || "");
-    });
+  const tasks = (pet
+    ? state.environment
+        .filter((t) => t.petId === pet.id)
+        .sort((a, b) => {
+          const sa = STATUS_ORDER[envTaskStatus(a)], sb = STATUS_ORDER[envTaskStatus(b)];
+          return sa !== sb ? sa - sb : (a.nextDue || "").localeCompare(b.nextDue || "");
+        })
+    : []);
 
   // FLIP: after tasks re-sort, animate each card from its old position to its new one
+  // Must be declared before any early returns to satisfy Rules of Hooks
   useEffect(() => {
     if (!Object.keys(snapPositions.current).length) return;
     for (const [id, el] of Object.entries(itemRefs.current)) {
@@ -126,6 +127,9 @@ export default function EnvironmentPage() {
     }
     snapPositions.current = {};
   }, [tasks]);
+
+  if (!ready || !authed) return null;
+  if (!pet) { router.replace("/pet-profile/new"); return null; }
 
   const counts = tasks.reduce(
     (acc, t) => { acc[envTaskStatus(t)]++; return acc; },
