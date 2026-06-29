@@ -60,11 +60,11 @@ export default function PetProfilePage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: T.pinkDeep, letterSpacing: -0.4 }}>{pet.name}</div>
-              <p style={{ fontSize: 12.5, color: T.gray, margin: "2px 0 8px" }}>{pet.breed || pet.species}{pet.dob ? ` · Born ${pet.dob}` : ""}</p>
+              <p style={{ fontSize: 12.5, color: T.gray, margin: "2px 0 0" }}>{pet.breed || pet.species}{pet.dob ? ` · Born ${pet.dob}` : ""}</p>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             {[
               { label: "AGE", value: ageFromDob(pet.dob) },
               { label: "WEIGHT", value: `${latestWeight || "—"} kg` },

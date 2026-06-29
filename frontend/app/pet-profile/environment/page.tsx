@@ -7,7 +7,7 @@
    feed the shared notification system (see deriveAlerts in lib/store). */
 
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import {
   usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil,
@@ -26,6 +26,42 @@ const STATUS_META: Record<EnvStatus, { label: string; color: string; bg: string 
   overdue:   { label: "Overdue",   color: "#D4183D", bg: "#FEF2F2" },
 };
 const STATUS_ORDER: Record<EnvStatus, number> = { overdue: 0, due: 1, upcoming: 2, completed: 3 };
+
+function EnvConfetti({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d")!;
+    const COLORS = ["#F5A0C0", "#F9D040", "#A0D8F0", "#C0E8A0", "#E8A0F5", "#F5C060", "#80D8C0"];
+    type P = { x: number; y: number; vx: number; vy: number; size: number; color: string; rot: number; rotV: number };
+    const pieces: P[] = [];
+    let frame = 0, raf: number;
+    function spawn() {
+      pieces.push({ x: Math.random() * canvas!.width, y: -8, vx: (Math.random() - 0.5) * 2.5, vy: 1.5 + Math.random() * 2.5, size: 3 + Math.random() * 5, color: COLORS[Math.floor(Math.random() * COLORS.length)], rot: Math.random() * Math.PI * 2, rotV: (Math.random() - 0.5) * 0.14 });
+    }
+    function draw() {
+      ctx.clearRect(0, 0, canvas!.width, canvas!.height);
+      const rate = frame < 80 ? 2 : frame < 150 ? 3 : 6;
+      if (frame < 220 && frame % rate === 0) spawn();
+      for (let i = pieces.length - 1; i >= 0; i--) {
+        const p = pieces[i]; p.x += p.vx; p.y += p.vy; p.rot += p.rotV; p.vy += 0.035;
+        if (p.y > canvas!.height + 10) { pieces.splice(i, 1); continue; }
+        ctx.save(); ctx.globalAlpha = 0.9; ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size * 0.35, p.size, p.size * 0.7);
+        ctx.restore();
+      }
+      frame++; raf = requestAnimationFrame(draw);
+    }
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+  if (!active) return null;
+  return <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 499 }} />;
+}
 
 function relDay(iso: string): string {
   if (!iso) return "Never";
@@ -57,8 +93,12 @@ export default function EnvironmentPage() {
   const { ready, authed } = useRequireAuth();
   const { state, selectedPet, add, update, remove } = usePawzo();
   const [form, setForm] = useState<Draft | null>(null);
-  // Remembers each task's pre-completion dates so "deselect" can truly undo.
+  const [completing, setCompleting] = useState<string | null>(null);
+  const [confetti, setConfetti] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const undoRef = useRef<Record<string, { lastCompleted: string; nextDue: string }>>({});
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const snapPositions = useRef<Record<string, number>>({});
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -70,6 +110,22 @@ export default function EnvironmentPage() {
       const sa = STATUS_ORDER[envTaskStatus(a)], sb = STATUS_ORDER[envTaskStatus(b)];
       return sa !== sb ? sa - sb : (a.nextDue || "").localeCompare(b.nextDue || "");
     });
+
+  // FLIP: after tasks re-sort, animate each card from its old position to its new one
+  useLayoutEffect(() => {
+    if (!Object.keys(snapPositions.current).length) return;
+    for (const [id, el] of Object.entries(itemRefs.current)) {
+      if (!el || snapPositions.current[id] === undefined) continue;
+      const delta = snapPositions.current[id] - el.getBoundingClientRect().top;
+      if (delta === 0) continue;
+      el.style.transition = "none";
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect(); // force reflow
+      el.style.transition = "transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)";
+      el.style.transform = "translateY(0)";
+    }
+    snapPositions.current = {};
+  }, [tasks]);
 
   const counts = tasks.reduce(
     (acc, t) => { acc[envTaskStatus(t)]++; return acc; },
@@ -103,8 +159,20 @@ export default function EnvironmentPage() {
 
   function markComplete(t: EnvTask) {
     const today = todayISO();
-    undoRef.current[t.id] = { lastCompleted: t.lastCompleted, nextDue: t.nextDue }; // snapshot for undo
-    update("environment", t.id, { lastCompleted: today, nextDue: computeNextDue(today, t.intervalDays) });
+    undoRef.current[t.id] = { lastCompleted: t.lastCompleted, nextDue: t.nextDue };
+    setCompleting(t.id);
+    setTimeout(() => {
+      // snapshot current positions for FLIP before re-sort
+      for (const [id, el] of Object.entries(itemRefs.current)) {
+        if (el) snapPositions.current[id] = el.getBoundingClientRect().top;
+      }
+      update("environment", t.id, { lastCompleted: today, nextDue: computeNextDue(today, t.intervalDays) });
+      setCompleting(null);
+      setConfetti(true);
+      setToast(t.name);
+      setTimeout(() => setConfetti(false), 3000);
+      setTimeout(() => setToast(null), 3200);
+    }, 700);
   }
 
   function undoComplete(t: EnvTask) {
@@ -124,6 +192,18 @@ export default function EnvironmentPage() {
 
   return (
     <AppFrame>
+      <EnvConfetti active={confetti} />
+
+      {toast && (
+        <div className="pawzo-rise" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 500, background: "linear-gradient(135deg,#10B981,#34D399)", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.18)" }}>
+          <span style={{ fontSize: 28 }}>🎉</span>
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "#064E3B", letterSpacing: 0.9, margin: "0 0 2px" }}>TASK DONE!</p>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}>{toast} — great job! 🐾</p>
+          </div>
+        </div>
+      )}
+
       <TopBar title="Environment" back="/pet-profile" />
 
       <div style={{ padding: "8px 16px 0" }}>
@@ -226,7 +306,7 @@ export default function EnvironmentPage() {
               const st = envTaskStatus(t);
               const meta = STATUS_META[st];
               return (
-                <div key={t.id} style={{ background: "var(--p-surface)", borderRadius: 16, padding: "13px 14px", boxShadow: T.shadowSoft }}>
+                <div key={t.id} ref={(el) => { itemRefs.current[t.id] = el; }} style={{ background: "var(--p-surface)", borderRadius: 16, padding: "13px 14px", boxShadow: T.shadowSoft }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 }}>
                     <span style={{ fontSize: 14.5, fontWeight: 800, color: T.ink }}>{t.name}</span>
                     <span style={{ fontSize: 10, fontWeight: 800, color: meta.color, background: meta.bg, padding: "3px 9px", borderRadius: 20, whiteSpace: "nowrap" }}>{meta.label}</span>
@@ -252,9 +332,24 @@ export default function EnvironmentPage() {
                         Completed · tap to undo
                       </button>
                     ) : (
-                      <button onClick={() => markComplete(t)} className="pawzo-press" style={{ flex: 1, height: 36, borderRadius: 11, border: "1.5px solid #99F6E4", background: "var(--p-surface-2)", color: "#0F766E", fontSize: 12.5, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5 11 15l4.5-5" /></svg>
-                        Mark complete
+                      <button
+                        onClick={() => completing !== t.id && markComplete(t)}
+                        className="pawzo-press"
+                        style={{
+                          flex: 1, height: 36, borderRadius: 11, fontSize: 12.5, fontWeight: 800, cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          transition: "background 0.25s, border-color 0.25s, color 0.25s",
+                          border: completing === t.id ? "none" : "1.5px solid #99F6E4",
+                          background: completing === t.id ? "#10B981" : "var(--p-surface-2)",
+                          color: completing === t.id ? "#fff" : "#0F766E",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={completing === t.id ? "#fff" : "#0F766E"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          {completing === t.id
+                            ? <path d="M20 6 9 17l-5-5" />
+                            : <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5 11 15l4.5-5" /></>}
+                        </svg>
+                        {completing === t.id ? "Completed!" : "Mark complete"}
                       </button>
                     )}
                     <button onClick={() => setForm(draftFromTask(t))} className="pawzo-press" aria-label="Edit task" style={{ width: 42, height: 36, borderRadius: 11, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
