@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, T, ChevronRight } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, CURRENCIES } from "../lib/store";
+import { api } from "../lib/api";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -44,6 +46,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
   const { state, setSettings, logout } = usePawzo();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready || !authed) return null;
 
@@ -52,6 +56,18 @@ export default function SettingsPage() {
   function doLogout() {
     logout();
     router.push("/login");
+  }
+
+  async function doDeleteAccount() {
+    setDeleting(true);
+    try {
+      await api.requestDeletion();
+      logout();
+      router.push("/login");
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   }
 
   return (
@@ -164,7 +180,44 @@ export default function SettingsPage() {
         >
           Log out
         </button>
+
+        <button
+          className="pawzo-press"
+          onClick={() => setShowDeleteConfirm(true)}
+          style={{ marginTop: 10, width: "100%", textAlign: "center", padding: "14px", borderRadius: 16, background: "var(--p-surface)", color: T.grayLight, fontWeight: 700, fontSize: 14, boxShadow: T.shadowSoft, cursor: "pointer", border: `1.5px solid var(--p-border)` }}
+        >
+          Delete account
+        </button>
+
         <p style={{ textAlign: "center", fontSize: 11, color: T.grayLight, margin: "14px 0 6px" }}>Pawzo v1.0</p>
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+            <div style={{ width: "100%", maxWidth: 480, background: "var(--p-surface)", borderRadius: "24px 24px 0 0", padding: "28px 24px 36px" }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--p-border)", margin: "0 auto 20px" }} />
+              <p style={{ fontSize: 20, fontWeight: 800, color: T.ink, marginBottom: 10 }}>Delete your account?</p>
+              <p style={{ fontSize: 14, color: T.gray, lineHeight: 1.55, marginBottom: 24 }}>
+                Your account and all pet data will be <strong>permanently deleted after 30 days</strong>. You can cancel this within 30 days by logging back in.
+              </p>
+              <button
+                className="pawzo-press"
+                onClick={doDeleteAccount}
+                disabled={deleting}
+                style={{ width: "100%", padding: "14px", borderRadius: 16, background: T.danger, color: "#fff", fontWeight: 800, fontSize: 15, border: "none", cursor: "pointer", marginBottom: 12, opacity: deleting ? 0.6 : 1 }}
+              >
+                {deleting ? "Requesting…" : "Yes, delete my account"}
+              </button>
+              <button
+                className="pawzo-press"
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{ width: "100%", padding: "14px", borderRadius: 16, background: "var(--p-surface-2)", color: T.ink, fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <BottomNav />
