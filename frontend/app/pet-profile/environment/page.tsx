@@ -7,7 +7,7 @@
    feed the shared notification system (see deriveAlerts in lib/store). */
 
 import { useRouter } from "next/navigation";
-import { useState, useRef, useLayoutEffect, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import {
   usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil,
@@ -112,7 +112,7 @@ export default function EnvironmentPage() {
     });
 
   // FLIP: after tasks re-sort, animate each card from its old position to its new one
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!Object.keys(snapPositions.current).length) return;
     for (const [id, el] of Object.entries(itemRefs.current)) {
       if (!el || snapPositions.current[id] === undefined) continue;
