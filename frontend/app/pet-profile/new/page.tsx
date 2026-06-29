@@ -8,16 +8,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { AppFrame, TopBar, PrimaryButton, GhostButton, Field, T, inputStyle, IconPlus } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, fileToDataURL } from "../../lib/store";
+import { CropStep } from "../../components/crop-step";
 import { Autocomplete } from "../../onboarding/page";
 
-const SPECIES = ["Dog", "Cat", "Bird", "Rabbit", "Guinea pig", "Hamster", "Fish", "Reptile", "Other"];
+const SPECIES = ["Dog", "Cat", "Bird", "Rabbit", "Guinea pig", "Hamster", "Fish", "Reptile", "Tortoise", "Other"];
 const BREEDS: Record<string, string[]> = {
   Dog: ["Labrador Retriever", "German Shepherd", "Golden Retriever", "Bulldog", "Beagle", "Poodle", "Shih Tzu", "Pug", "Rottweiler", "Dachshund", "Indian Pariah", "Mixed breed"],
   Cat: ["Persian", "Maine Coon", "Siamese", "Bengal", "British Shorthair", "Ragdoll", "Sphynx", "Indian Billi", "Mixed breed"],
   Bird: ["Budgerigar", "Cockatiel", "African Grey", "Lovebird", "Canary", "Macaw", "Finch"],
   Rabbit: ["Holland Lop", "Netherland Dwarf", "Lionhead", "Flemish Giant", "Mini Rex"],
   Fish: ["Goldfish", "Betta", "Guppy", "Molly", "Angelfish", "Tetra"],
-  Reptile: ["Leopard Gecko", "Bearded Dragon", "Corn Snake", "Red-eared Slider", "Iguana"],
+  Reptile: ["Leopard Gecko", "Bearded Dragon", "Corn Snake", "Iguana", "Chameleon"],
+  Tortoise: ["Hermann's", "Russian", "Greek", "Red-footed", "Indian Star", "Sulcata", "Leopard", "Red-eared Slider"],
 };
 
 export default function AddPet() {
@@ -36,7 +38,8 @@ function AddPetInner() {
   const { addPet, updatePet, state } = usePawzo();
   const editing = editId ? state.pets.find((p) => p.id === editId) : null;
 
-  const [photo, setPhoto] = useState("");
+  const [photo, setPhoto]   = useState("");
+  const [cropSrc, setCropSrc] = useState("");
   const [name, setName] = useState("");
   const [species, setSpecies] = useState("Dog");
   const [breed, setBreed] = useState("");
@@ -64,7 +67,8 @@ function AddPetInner() {
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setPhoto(await fileToDataURL(f));
+    if (f) setCropSrc(await fileToDataURL(f));
+    e.target.value = "";
   }
 
   function save() {
@@ -80,6 +84,13 @@ function AddPetInner() {
 
   return (
     <AppFrame>
+      {cropSrc && (
+        <CropStep
+          photo={cropSrc}
+          onCrop={(cropped) => { setPhoto(cropped); setCropSrc(""); }}
+          onBack={() => setCropSrc("")}
+        />
+      )}
       <TopBar title={editing ? "Edit pet" : "Add new pet"} back={editing ? "/pet-profile" : "/dashboard"} />
 
       <div style={{ padding: "8px 20px 0" }}>

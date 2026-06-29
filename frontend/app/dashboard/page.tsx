@@ -490,7 +490,7 @@ export default function Dashboard() {
 }
 
 export function speciesEmoji(s: string) {
-  const m: Record<string, string> = { Dog: "🐶", Cat: "🐱", Bird: "🦜", Rabbit: "🐰", "Guinea pig": "🐹", Hamster: "🐹", Fish: "🐠", Reptile: "🦎" };
+  const m: Record<string, string> = { Dog: "🐶", Cat: "🐱", Bird: "🦜", Rabbit: "🐰", "Guinea pig": "🐹", Hamster: "🐹", Fish: "🐠", Reptile: "🦎", Tortoise: "🐢" };
   return m[s] ?? "🐾";
 }
 
@@ -505,6 +505,7 @@ export function speciesBg(s: string) {
     Hamster:    "#E7F59E",  // Lemon
     Fish:       "#CCE6F4",  // Cloud Soft
     Reptile:    "#B4EBCA",  // Minty Fresh
+    Tortoise:   "#D3FAC7",  // Grass Green
   };
   return m[s] ?? "#D9F2B4";
 }

@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AppFrame, BottomNav, TopBar, T, IconSpark, ChevronRight } from "../components/pawzo-ui";
+import { AppFrame, BottomNav, TopBar, T, IconSpark, ChevronRight, IconGear } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, ageFromDob, deriveAlerts, fmtDate, daysUntil } from "../lib/store";
 import { speciesEmoji } from "../dashboard/page";
 import { useEffect, useState } from "react";
@@ -39,7 +39,7 @@ export default function PetProfilePage() {
 
   return (
     <AppFrame bg={T.bg}>
-      <TopBar back="/dashboard" centerLogo right={<button onClick={() => router.push(`/pet-profile/new?edit=${pet.id}`)} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--p-surface)", border: "1.5px solid var(--p-border)", borderRadius: 12, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, color: T.gray, cursor: "pointer" }}>Edit</button>} />
+      <TopBar back="/dashboard" centerLogo right={<button onClick={() => router.push("/settings")} className="pawzo-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, background: "transparent", border: "none", cursor: "pointer", color: T.grayLight }}><IconGear /></button>} />
 
       {/* header card (read-only) */}
       <div style={{ padding: "4px 16px 0" }}>
@@ -61,10 +61,6 @@ export default function PetProfilePage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: T.pinkDeep, letterSpacing: -0.4 }}>{pet.name}</div>
               <p style={{ fontSize: 12.5, color: T.gray, margin: "2px 0 8px" }}>{pet.breed || pet.species}{pet.dob ? ` · Born ${pet.dob}` : ""}</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <span style={statBadge}>{genderLabel}</span>
-                <span style={statBadge}>{pet.species}</span>
-              </div>
             </div>
           </div>
 
@@ -72,7 +68,7 @@ export default function PetProfilePage() {
             {[
               { label: "AGE", value: ageFromDob(pet.dob) },
               { label: "WEIGHT", value: `${latestWeight || "—"} kg` },
-              { label: "TYPE", value: pet.species },
+              { label: "GENDER", value: genderLabel },
             ].map((s) => (
               <div key={s.label} style={{ flex: 1, background: "rgba(255,255,255,0.7)", borderRadius: 14, padding: "10px 6px", textAlign: "center" }}>
                 <p style={{ fontSize: 9, fontWeight: 700, color: "#9a7d8c", letterSpacing: 0.8, marginBottom: 5 }}>{s.label}</p>
@@ -140,7 +136,7 @@ export default function PetProfilePage() {
       <div style={{ padding: "12px 16px 0", display: "flex", gap: 10 }}>
         <QuickLink href="/pet-profile/growth" emoji="📈" label="Growth" bg="#F5F0FF" border="#E0D2F5" color="#6B3FA0" />
         <QuickLink href="/memories" emoji="📷" label="Memories" bg="#FFF1F5" border="#FBD0E4" color={T.pinkDeep} />
-        <QuickLink href="/emergency" emoji="🚑" label="Emergency" bg="#FEF2F2" border="#FECACA" color="#B91C1C" />
+        <QuickLink href="/pet-profile/environment" emoji="🏡" label="Environment" bg="#F0FDFA" border="#99F6E4" color="#0F766E" />
       </div>
 
       {/* Quick health snapshot (real) */}

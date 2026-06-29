@@ -63,6 +63,7 @@ class Pet(Base):
     milestones   = relationship("Milestone", back_populates="pet", cascade="all, delete-orphan")
     memories     = relationship("Memory", back_populates="pet", cascade="all, delete-orphan")
     events       = relationship("CalendarEvent", back_populates="pet", cascade="all, delete-orphan")
+    env_tasks    = relationship("EnvironmentTask", back_populates="pet", cascade="all, delete-orphan")
 
 
 class Meal(Base):
@@ -187,6 +188,21 @@ class CalendarEvent(Base):
     emoji   = Column(String, default="")
 
     pet = relationship("Pet", back_populates="events")
+
+
+class EnvironmentTask(Base):
+    __tablename__ = "environment_tasks"
+
+    id             = Column(String, primary_key=True, default=new_id)
+    pet_id         = Column(String, ForeignKey("pets.id", ondelete="CASCADE"), nullable=False)
+    name           = Column(String, nullable=False)
+    frequency      = Column(String, default="Weekly")   # display label e.g. "Every 14 Days"
+    interval_days  = Column(Integer, default=7)          # days between completions
+    last_completed = Column(String, default="")          # ISO yyyy-mm-dd ("" if never done)
+    next_due       = Column(String, default="")          # ISO yyyy-mm-dd
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    pet = relationship("Pet", back_populates="env_tasks")
 
 
 class Vet(Base):

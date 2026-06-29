@@ -347,6 +347,15 @@ export const textareaStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
+/* ----------------------------------------------------------------- ai disclaimer */
+export function AiDisclaimer() {
+  return (
+    <p style={{ fontSize: 10.5, color: T.grayLight, textAlign: "center", margin: "6px 0 0", letterSpacing: 0.2 }}>
+      AI can make mistakes. Check important info with a professional.
+    </p>
+  );
+}
+
 /* ----------------------------------------------------------------- section title */
 export function SectionTitle({
   children,

@@ -278,6 +278,36 @@ class MilestoneOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Environment Tasks ─────────────────────────────────────────────────────────
+
+class EnvironmentTaskCreate(BaseModel):
+    name: str
+    frequency: str = "Weekly"
+    interval_days: int = 7
+    last_completed: str = ""
+    next_due: str = ""
+
+
+class EnvironmentTaskUpdate(BaseModel):
+    name: Optional[str] = None
+    frequency: Optional[str] = None
+    interval_days: Optional[int] = None
+    last_completed: Optional[str] = None
+    next_due: Optional[str] = None
+
+
+class EnvironmentTaskOut(BaseModel):
+    id: str
+    pet_id: str
+    name: str
+    frequency: str
+    interval_days: int
+    last_completed: str
+    next_due: str
+
+    model_config = {"from_attributes": True}
+
+
 # ── Memories ──────────────────────────────────────────────────────────────────
 
 class MemoryCreate(BaseModel):
@@ -465,6 +495,60 @@ class ActivityOut(BaseModel):
     dates: list[str]
     streak: int = 0
     streak_broken: bool = False
+
+
+# ── Weight Analysis ───────────────────────────────────────────────────────────
+
+class WeightLogEntry(BaseModel):
+    date: str
+    weight: float  # kg
+
+
+class WeightAnalysisRequest(BaseModel):
+    pet_id: str
+    logs: list[WeightLogEntry] = []
+
+
+class WeightAnalysisOut(BaseModel):
+    ideal_min: float
+    ideal_max: float
+    goal: str           # "maintain" | "gain" | "lose"
+    goal_amount: float
+    message: str
+    trend_status: str   # "normal" | "caution" | "warning"
+    trend_message: str
+
+
+# ── Nutrition Recommendations ─────────────────────────────────────────────────
+
+class NutritionRecsRequest(BaseModel):
+    pet_id: str
+
+
+class NutritionRecItem(BaseModel):
+    name: str
+    ingredients: str
+    reason: str
+    badge: str
+
+
+class NutritionRecsOut(BaseModel):
+    recipes: list[NutritionRecItem]
+
+
+# ── Food Evaluation ───────────────────────────────────────────────────────────
+
+class FoodEvalRequest(BaseModel):
+    pet_id: str
+    food: str
+    ingredients: str = ""
+
+
+class FoodEvalOut(BaseModel):
+    suitable: bool
+    reason: str
+    serving: str
+    alternative: str
 
 
 # ── Documents ─────────────────────────────────────────────────────────────────

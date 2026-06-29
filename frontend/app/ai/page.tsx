@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { AppFrame, T, IconSpark } from "../components/pawzo-ui";
+import { AppFrame, T, IconSpark, AiDisclaimer } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, type Pet } from "../lib/store";
 import { chatApi, type ApiChatMessage } from "../lib/api";
 
@@ -174,7 +174,7 @@ function AIContent() {
   }
 
   const suggestions = suggestionsFor(pet, state.pets);
-  const placeholder = pet ? `Ask about ${pet.name} or share a photo…` : "Ask about any pet or share a photo…";
+  const placeholder = pet ? `Ask about ${pet.name}…` : "Ask about any pet…";
   const statusLabel = pet ? `Helping with ${pet.name}` : "General pet care";
 
   return (
@@ -329,6 +329,7 @@ function AIContent() {
             </svg>
           </button>
         </div>
+        <AiDisclaimer />
       </div>
     </AppFrame>
   );

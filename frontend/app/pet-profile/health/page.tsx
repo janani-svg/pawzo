@@ -33,6 +33,10 @@ export default function HealthPage() {
       <TopBar title="Health" back="/pet-profile" />
 
       <div style={{ padding: "8px 16px 0" }}>
+        {/* nutrition chart */}
+        <SectionTitle>Nutrition Chart</SectionTitle>
+        <NutritionStatus meals={petMeals} mealLogs={petMealLogs} />
+
         {/* vaccinations */}
         <SectionTitle action={<AddChip onClick={() => setForm({ kind: "vaccine" })} label="Vaccination" />}>Vaccinations</SectionTitle>
         {form?.kind === "vaccine" && <VaccineForm onCancel={() => setForm(null)} onSave={(d) => { add("vaccinations", { ...d, petId: pet.id }); setForm(null); }} />}
@@ -48,10 +52,6 @@ export default function HealthPage() {
             })}
           </div>
         )}
-
-        {/* health status */}
-        <SectionTitle>Health Status</SectionTitle>
-        <NutritionStatus meals={petMeals} mealLogs={petMealLogs} />
 
         {/* clinic ledger */}
         <SectionTitle>Health clinic ledger</SectionTitle>

@@ -7,6 +7,7 @@ import { useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, T, IconPlus, inputStyle } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fileToDataURL } from "../lib/store";
+import { CropStep } from "../components/crop-step";
 
 /* ── Mood catalogue ───────────────────────────────────────────────────────── */
 
@@ -492,7 +493,7 @@ function AddSheet({ pets, defaultPetId, onClose, onSave }: {
   const galRef = useRef<HTMLInputElement>(null);
   const vidRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep]           = useState<"pick" | "details">("pick");
+  const [step, setStep]           = useState<"pick" | "crop" | "details">("pick");
   const [photo, setPhoto]         = useState("");
   const [mediaType, setMediaType] = useState<"photo" | "video">("photo");
   const [title, setTitle]         = useState("");
@@ -506,7 +507,8 @@ function AddSheet({ pets, defaultPetId, onClose, onSave }: {
 
   async function handleFile(file: File, type: "photo" | "video") {
     const dataUrl = type === "video" ? await videoThumbnail(file) : await fileToDataURL(file, 1200);
-    setPhoto(dataUrl); setMediaType(type); setStep("details");
+    setPhoto(dataUrl); setMediaType(type);
+    if (type === "video") { setStep("details"); } else { setStep("crop"); }
   }
 
   function doSave() {
@@ -519,7 +521,13 @@ function AddSheet({ pets, defaultPetId, onClose, onSave }: {
 
   return (
     <Overlay onClose={onClose}>
-      {step === "pick" ? (
+      {step === "crop" && photo ? (
+        <CropStep
+          photo={photo}
+          onCrop={(cropped) => { setPhoto(cropped); setStep("details"); }}
+          onBack={() => { setPhoto(""); setStep("pick"); }}
+        />
+      ) : step === "pick" ? (
         <>
           <SheetHandle />
           <h2 style={{ fontSize: 18, fontWeight: 800, color: T.ink, textAlign: "center", margin: "0 0 22px" }}>Add Memory ✨</h2>

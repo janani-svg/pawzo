@@ -1,18 +1,16 @@
 "use client";
 
-/* PAWZO Food & Feeding — user-defined meals + AI menu suggestions.
-   The AI button opens a suggestion sheet (not a chat). It calls the backend,
-   which picks region-appropriate meals for the pet, presents 3 options as
-   cards the user can accept, tweak, or regenerate. */
+/* PAWZO Food & Feeding — user-defined meals, ingredient AI eval,
+   and AI nutrition plan with household-measure recipes. */
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
-import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconSpark, IconPlus, inputStyle } from "../../components/pawzo-ui";
+import { useState } from "react";
+import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
-import { mealSuggestApi, type ApiMealSuggestion } from "../../lib/api";
+import { foodEvalApi, nutritionRecsApi, type ApiFoodEval, type ApiNutritionRec } from "../../lib/api";
 
-type Draft = { id?: string; name: string; time: string; food: string; kcal: string };
-const EMPTY: Draft = { name: "", time: "", food: "", kcal: "" };
+type Draft = { id?: string; name: string; time: string; food: string; kcal: string; ingredients: string };
+const EMPTY: Draft = { name: "", time: "", food: "", kcal: "", ingredients: "" };
 
 export default function FoodPage() {
   const router = useRouter();
@@ -20,7 +18,14 @@ export default function FoodPage() {
   const { state, selectedPet, add, update, remove, toggleMealLog } = usePawzo();
   const [form, setForm]               = useState<Draft | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
+
+  // AI food evaluation
+  const [foodEval, setFoodEval]       = useState<ApiFoodEval | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+
+  // AI nutrition recs
+  const [nutritionRecs, setNutritionRecs]           = useState<ApiNutritionRec[] | null>(null);
+  const [nutritionLoading, setNutritionLoading]     = useState(false);
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -35,7 +40,7 @@ export default function FoodPage() {
     return s + (done ? m.kcal : 0);
   }, 0);
 
-  const timedMeals = meals.filter((m) => m.time);
+  const timedMeals  = meals.filter((m) => m.time);
   const allSameTime = timedMeals.length >= 2 && timedMeals.every((m) => m.time === timedMeals[0].time);
 
   const history = Array.from({ length: 7 }).map((_, i) => {
@@ -55,7 +60,45 @@ export default function FoodPage() {
     if (form.id) update("meals", form.id, payload);
     else add("meals", payload);
     setForm(null);
+    setFoodEval(null);
   }
+
+  async function aiEvaluate() {
+    if (!form) return;
+    const foodStr = [form.name.trim(), form.food.trim()].filter(Boolean).join(" - ");
+    setEvalLoading(true);
+    try {
+      const res = await foodEvalApi.evaluate(pet!.id, foodStr, form.ingredients.trim());
+      setFoodEval(res);
+    } catch {
+      // silent fail
+    } finally {
+      setEvalLoading(false);
+    }
+  }
+
+  async function fetchNutritionRecs() {
+    setNutritionLoading(true);
+    try {
+      const res = await nutritionRecsApi.recommend(pet!.id);
+      setNutritionRecs(res.recipes);
+    } catch {
+      // silent fail
+    } finally {
+      setNutritionLoading(false);
+    }
+  }
+
+  function addToPlanner(r: ApiNutritionRec) {
+    add("meals", { petId: pet!.id, name: r.name, time: "", food: r.ingredients, kcal: 0 });
+  }
+
+  const badgeColors: Record<string, { bg: string; color: string; border: string }> = {
+    "Recommended": { bg: "#DCFCE7", color: "#166534", border: "#BBF7D0" },
+    "High protein": { bg: "#DBEAFE", color: "#1E40AF", border: "#BFDBFE" },
+    "Occasional":   { bg: "#FEF9C3", color: "#713F12", border: "#FDE68A" },
+    "Light meal":   { bg: "#F3F4F6", color: "#374151", border: "#E5E7EB" },
+  };
 
   return (
     <AppFrame>
@@ -63,11 +106,10 @@ export default function FoodPage() {
 
       <div style={{ padding: "8px 16px 0" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-          <button className="pawzo-press" style={btn(false)} onClick={() => setForm(EMPTY)}><IconPlus color={T.ink} size={16} /> Add meal</button>
-          <button className="pawzo-press" style={btn(true)} onClick={() => setSuggestOpen(true)}><IconSpark color="#fff" size={16} /> AI Suggests</button>
+          <button className="pawzo-press" style={btn(false)} onClick={() => { setForm(EMPTY); setFoodEval(null); }}><IconPlus color={T.ink} size={16} /> Add meal</button>
         </div>
 
-        {/* add/edit form */}
+        {/* Add / edit form */}
         {form && (
           <div className="pawzo-rise" style={{ background: "var(--p-surface)", borderRadius: 18, padding: 16, boxShadow: T.shadowSoft, marginBottom: 14 }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: T.ink, marginBottom: 12 }}>{form.id ? "Edit meal" : "New meal"}</p>
@@ -76,11 +118,46 @@ export default function FoodPage() {
               <input style={inputStyle} type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
               <input style={inputStyle} type="number" placeholder="kcal" value={form.kcal} onChange={(e) => setForm({ ...form, kcal: e.target.value })} />
             </div>
-            <input style={{ ...inputStyle, marginBottom: 12 }} placeholder="Food (e.g. Chicken & rice · 120g)" value={form.food} onChange={(e) => setForm({ ...form, food: e.target.value })} />
-            <div style={{ display: "flex", gap: 10 }}>
-              <GhostButton full onClick={() => setForm(null)}>Cancel</GhostButton>
+            <input style={{ ...inputStyle, marginBottom: 10 }} placeholder="Food (e.g. Chicken & rice · 120g)" value={form.food} onChange={(e) => setForm({ ...form, food: e.target.value })} />
+            <input style={{ ...inputStyle, marginBottom: 12 }} placeholder="Ingredients (optional — AI will evaluate these)" value={form.ingredients} onChange={(e) => setForm({ ...form, ingredients: e.target.value })} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <GhostButton full onClick={() => { setForm(null); setFoodEval(null); }}>Cancel</GhostButton>
+              <button onClick={aiEvaluate} disabled={evalLoading} className="pawzo-press" style={{ flex: 1, height: 44, borderRadius: 14, border: "1.5px solid #99F6E4", background: "#F0FDFA", color: "#0F766E", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                {evalLoading ? "Evaluating…" : "🤖 Evaluate"}
+              </button>
               <PrimaryButton full onClick={saveMeal}>Save</PrimaryButton>
             </div>
+          </div>
+        )}
+
+        {/* AI food eval result */}
+        {foodEval && form && (
+          <div className="pawzo-rise" style={{ marginTop: -6, marginBottom: 14 }}>
+            {foodEval.suitable ? (
+              <div style={{ background: "#F0FDF4", border: "1.5px solid #BBF7D0", borderRadius: 16, padding: 14 }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "#166534", marginBottom: 6 }}>✅ Suitable for {pet.name}!</p>
+                <p style={{ fontSize: 12.5, color: "#15803D", lineHeight: 1.5, marginBottom: foodEval.serving ? 8 : 0 }}>{foodEval.reason}</p>
+                {foodEval.serving && (
+                  <div style={{ background: "rgba(255,255,255,0.65)", borderRadius: 10, padding: "8px 12px" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#166534", marginBottom: 3 }}>Suggested serving:</p>
+                    <p style={{ fontSize: 12.5, color: "#14532D" }}>{foodEval.serving}</p>
+                  </div>
+                )}
+                <AiDisclaimer />
+              </div>
+            ) : (
+              <div style={{ background: "#FFF1F2", border: "1.5px solid #FECACA", borderRadius: 16, padding: 14 }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "#991B1B", marginBottom: 6 }}>⚠️ Not suitable for {pet.name}</p>
+                <p style={{ fontSize: 12.5, color: "#B91C1C", lineHeight: 1.5, marginBottom: foodEval.alternative ? 8 : 0 }}>{foodEval.reason}</p>
+                {foodEval.alternative && (
+                  <div style={{ background: "rgba(255,255,255,0.65)", borderRadius: 10, padding: "8px 12px" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#991B1B", marginBottom: 3 }}>Try instead:</p>
+                    <p style={{ fontSize: 12.5, color: "#7F1D1D" }}>{foodEval.alternative}</p>
+                  </div>
+                )}
+                <AiDisclaimer />
+              </div>
+            )}
           </div>
         )}
 
@@ -99,7 +176,7 @@ export default function FoodPage() {
         )}
 
         {meals.length === 0 ? (
-          <Empty text='No meals yet. Tap "Add meal" or let AI suggest a menu!' />
+          <Empty text='No meals yet. Tap "Add meal" to log your first meal.' />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {meals.map((m) => {
@@ -118,7 +195,7 @@ export default function FoodPage() {
                   </div>
                   {m.kcal > 0 && <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>{m.kcal} kcal</span>}
                   <div style={{ display: "flex", gap: 4 }}>
-                    <IconAction label="Edit" onClick={() => setForm({ id: m.id, name: m.name, time: m.time, food: m.food, kcal: String(m.kcal) })} />
+                    <IconAction label="Edit" onClick={() => { setForm({ id: m.id, name: m.name, time: m.time, food: m.food, kcal: String(m.kcal), ingredients: "" }); setFoodEval(null); }} />
                     <IconAction label="Delete" danger onClick={() => remove("meals", m.id)} />
                   </div>
                 </div>
@@ -127,7 +204,7 @@ export default function FoodPage() {
           </div>
         )}
 
-        {/* completion ring → tap for history */}
+        {/* Food stats */}
         {meals.length > 0 && (
           <>
             <SectionTitle>Food stats</SectionTitle>
@@ -168,179 +245,57 @@ export default function FoodPage() {
             )}
           </>
         )}
-      </div>
 
-      {/* AI Suggestion Sheet */}
-      {suggestOpen && (
-        <SuggestSheet
-          pet={pet}
-          onClose={() => setSuggestOpen(false)}
-          onAdd={(picked) => {
-            picked.forEach((s) => add("meals", { petId: pet.id, name: s.name, time: s.time, food: s.food, kcal: s.kcal }));
-            setSuggestOpen(false);
-          }}
-        />
-      )}
+        {/* AI Nutrition Plan */}
+        <SectionTitle>AI Nutrition Plan</SectionTitle>
+
+        {!nutritionRecs && !nutritionLoading && (
+          <button onClick={fetchNutritionRecs} className="pawzo-press" style={{ width: "100%", background: "#F0FDFA", border: "1.5px solid #99F6E4", borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
+            <span style={{ fontSize: 24 }}>🤖</span>
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: "#0F766E" }}>Get {pet.name}&apos;s Nutrition Plan</p>
+              <p style={{ fontSize: 11.5, color: "#134E4A" }}>Household-measure recipes based on species, breed & region</p>
+            </div>
+          </button>
+        )}
+
+        {nutritionLoading && (
+          <div style={{ background: "#F0FDFA", border: "1.5px solid #99F6E4", borderRadius: 18, padding: 16, textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: "#0F766E" }}>Generating recipes for {pet.name}…</p>
+          </div>
+        )}
+
+        {nutritionRecs && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {nutritionRecs.map((r, i) => {
+              const bc = badgeColors[r.badge] ?? badgeColors["Light meal"];
+              const cardBgs = ["#FEFCE8", "#F0FDF4", "var(--p-surface)"];
+              const cardBorders = ["#FDE68A", "#BBF7D0", "var(--p-border)"];
+              return (
+                <div key={i} style={{ background: cardBgs[i] ?? "var(--p-surface)", border: `1.5px solid ${cardBorders[i] ?? "var(--p-border)"}`, borderRadius: 16, padding: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <p style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, flex: 1, marginRight: 8 }}>{r.name}</p>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: bc.bg, color: bc.color, border: `1px solid ${bc.border}`, borderRadius: 20, padding: "3px 8px", flexShrink: 0 }}>{r.badge}</span>
+                  </div>
+                  <p style={{ fontSize: 12.5, color: T.gray, lineHeight: 1.5, marginBottom: 4 }}>{r.ingredients}</p>
+                  <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", marginBottom: 10 }}>{r.reason}</p>
+                  <button onClick={() => addToPlanner(r)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
+                    + Add to planner
+                  </button>
+                </div>
+              );
+            })}
+            <button onClick={fetchNutritionRecs} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
+              🔄 Regenerate
+            </button>
+            <AiDisclaimer />
+          </div>
+        )}
+
+      </div>
 
       <BottomNav />
     </AppFrame>
-  );
-}
-
-/* ─── AI Suggestion Sheet ─────────────────────────────────────────────────── */
-
-function SuggestSheet({
-  pet,
-  onClose,
-  onAdd,
-}: {
-  pet: { id: string; name: string; species: string; region: string };
-  onClose: () => void;
-  onAdd: (picked: ApiMealSuggestion[]) => void;
-}) {
-  const [status, setStatus]       = useState<"loading" | "done" | "error">("loading");
-  const [suggestions, setSuggestions] = useState<ApiMealSuggestion[]>([]);
-  const [selected, setSelected]   = useState<boolean[]>([]);
-  const [errorMsg, setErrorMsg]   = useState("");
-  const fetchCount = useRef(0);
-
-  function getRegion() {
-    if (pet.region) return pet.region;
-    try { return localStorage.getItem("pawzo:lastRegion") ?? ""; } catch { return ""; }
-  }
-
-  async function fetchSuggestions() {
-    setStatus("loading");
-    setErrorMsg("");
-    const id = ++fetchCount.current;
-    try {
-      const res = await mealSuggestApi.suggest(pet.id, getRegion());
-      if (id !== fetchCount.current) return; // stale
-      setSuggestions(res.suggestions);
-      setSelected(res.suggestions.map(() => true));
-      setStatus("done");
-    } catch (e: unknown) {
-      if (id !== fetchCount.current) return;
-      setErrorMsg(e instanceof Error ? e.message : "Failed to get suggestions");
-      setStatus("error");
-    }
-  }
-
-  useEffect(() => { fetchSuggestions(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pickedCount = selected.filter(Boolean).length;
-  const region = getRegion();
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      {/* backdrop */}
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.54)" }} />
-
-      <div style={{ position: "relative", background: "var(--p-bg)", borderRadius: "24px 24px 0 0", maxHeight: "88vh", overflowY: "auto", padding: "4px 20px 36px" }}>
-        {/* handle */}
-        <div style={{ width: 40, height: 4, background: "var(--p-border)", borderRadius: 2, margin: "10px auto 18px" }} />
-
-        {/* header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
-          <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: T.ink, margin: 0 }}>
-              AI Menu for {pet.name} 🍽️
-            </h2>
-            {region && (
-              <p style={{ fontSize: 12, color: T.grayLight, margin: "3px 0 0", fontWeight: 600 }}>
-                Based on: {region} · {pet.species}
-              </p>
-            )}
-          </div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 10, border: "none", background: "var(--p-surface-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: T.gray, fontSize: 15, fontWeight: 800 }}>✕</button>
-        </div>
-
-        {/* loading */}
-        {status === "loading" && (
-          <div style={{ padding: "40px 0", textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>🤔</div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: T.gray }}>Thinking up the perfect menu…</p>
-            <p style={{ fontSize: 12, color: T.grayLight, marginTop: 4 }}>Picking ingredients from {region || "your region"}</p>
-          </div>
-        )}
-
-        {/* error */}
-        {status === "error" && (
-          <div style={{ padding: "32px 0", textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>😕</div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: T.danger }}>{errorMsg}</p>
-            <button onClick={fetchSuggestions} style={{ marginTop: 16, padding: "10px 24px", borderRadius: 12, border: "none", background: T.pink, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Try again</button>
-          </div>
-        )}
-
-        {/* suggestions */}
-        {status === "done" && (
-          <>
-            <p style={{ fontSize: 12.5, color: T.gray, margin: "8px 0 14px", lineHeight: 1.5 }}>
-              Here are 3 meal ideas tailored for {pet.name}. Tap a card to select or deselect it, then add the ones you like.
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-              {suggestions.map((s, i) => {
-                const on = selected[i];
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setSelected((prev) => prev.map((v, j) => j === i ? !v : v))}
-                    className="pawzo-press"
-                    style={{
-                      width: "100%", textAlign: "left", cursor: "pointer",
-                      background: on ? T.primarySoft : "var(--p-surface)",
-                      border: `2px solid ${on ? T.pink : "var(--p-border)"}`,
-                      borderRadius: 18, padding: "14px 16px",
-                      boxShadow: on ? `0 0 0 0px ${T.pink}` : T.shadowSoft,
-                      transition: "all 180ms",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      {/* checkbox */}
-                      <div style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${on ? T.pink : "#cdbfdd"}`, background: on ? T.pink : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        {on && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
-                      </div>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: on ? T.pinkDeep : T.ink, flex: 1 }}>{s.name}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.orange, background: "#FFF7ED", borderRadius: 8, padding: "2px 8px", flexShrink: 0 }}>{s.kcal} kcal</span>
-                    </div>
-
-                    <p style={{ fontSize: 13, color: T.gray, margin: "0 0 6px 32px", lineHeight: 1.4 }}>🍖 {s.food}</p>
-
-                    {s.time && (
-                      <p style={{ fontSize: 11.5, color: T.grayLight, margin: "0 0 6px 32px" }}>⏰ {s.time}</p>
-                    )}
-
-                    <p style={{ fontSize: 11.5, color: on ? T.pinkDeep : T.grayLight, margin: "0 0 0 32px", fontStyle: "italic", lineHeight: 1.4 }}>
-                      {s.reason}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* actions */}
-            <button
-              onClick={fetchSuggestions}
-              className="pawzo-press"
-              style={{ width: "100%", padding: "12px 0", borderRadius: 14, border: `1.5px solid var(--p-border)`, background: "transparent", fontWeight: 700, fontSize: 13.5, cursor: "pointer", color: T.gray, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            >
-              🔄 Try different options
-            </button>
-
-            <button
-              onClick={() => onAdd(suggestions.filter((_, i) => selected[i]))}
-              disabled={pickedCount === 0}
-              className="pawzo-press"
-              style={{ width: "100%", padding: "14px 0", borderRadius: 14, border: "none", background: pickedCount > 0 ? T.pink : T.grayLight, fontWeight: 800, fontSize: 15, cursor: pickedCount > 0 ? "pointer" : "not-allowed", color: "#fff" }}
-            >
-              Add {pickedCount === 0 ? "meals" : pickedCount === 1 ? "1 meal" : `${pickedCount} meals`} to schedule ✨
-            </button>
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 

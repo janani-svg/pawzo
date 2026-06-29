@@ -7,7 +7,7 @@ load_dotenv()
 
 from app.db.database import engine, Base
 from app.models import models  # ensure models are registered before create_all
-from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings, chat, documents, alerts
+from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings, chat, documents, alerts, environment
 
 try:
     from app.routers import push as push_router
@@ -55,6 +55,7 @@ app.include_router(growth.router,   prefix="/pets",  tags=["growth"])
 app.include_router(expenses.router, prefix="/pets",  tags=["expenses"])
 app.include_router(memories.router, prefix="/pets",  tags=["memories"])
 app.include_router(calendar.router, prefix="/pets",  tags=["calendar"])
+app.include_router(environment.router, prefix="/pets", tags=["environment"])
 app.include_router(settings.router,  prefix="/user",  tags=["settings"])
 app.include_router(chat.router,      prefix="/user",  tags=["chat"])
 app.include_router(documents.router, prefix="/user",  tags=["documents"])

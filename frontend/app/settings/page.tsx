@@ -94,11 +94,30 @@ export default function SettingsPage() {
         <SectionTitle>App preferences</SectionTitle>
         <div style={{ background: "var(--p-surface)", borderRadius: 18, boxShadow: T.shadowSoft, overflow: "hidden" }}>
           {/* Units */}
-          <Row
-            label={`Units: ${units === "metric" ? "Metric (kg, cm)" : "Imperial (lb, in)"}`}
-            right={<ChevronRight color={T.grayLight} />}
-            onClick={() => setSettings({ units: units === "metric" ? "imperial" : "metric" })}
-          />
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--p-border)" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: T.gray, marginBottom: 10 }}>Weight &amp; measurement units</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              {([
+                { value: "metric",   label: "🌍 Metric",   sub: "kg · g · cm" },
+                { value: "imperial", label: "🇺🇸 US / Imperial", sub: "lb · oz · in" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSettings({ units: opt.value })}
+                  className="pawzo-press"
+                  style={{
+                    flex: 1, borderRadius: 12, padding: "10px 8px",
+                    border: `2px solid ${units === opt.value ? T.pink : "transparent"}`,
+                    background: units === opt.value ? T.primarySoft : "var(--p-surface-2)",
+                    cursor: "pointer", textAlign: "center",
+                  }}
+                >
+                  <p style={{ fontSize: 13, fontWeight: 700, color: units === opt.value ? T.pinkDeep : T.ink, marginBottom: 2 }}>{opt.label}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: units === opt.value ? T.pink : T.grayLight }}>{opt.sub}</p>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Currency — full dropdown */}
           <Row

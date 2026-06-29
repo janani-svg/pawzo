@@ -133,6 +133,14 @@ export const calendarApi = {
   delete: (petId: string, id: string) => del(`/pets/${petId}/events/${id}`),
 };
 
+/* ── Environment ────────────────────────────────────────────────────────── */
+export const environmentApi = {
+  list:   (petId: string)              => get<ApiEnvironmentTask[]>(`/pets/${petId}/environment`),
+  create: (petId: string, d: Omit<ApiEnvironmentTask, "id" | "pet_id">) => post<ApiEnvironmentTask>(`/pets/${petId}/environment`, d),
+  update: (petId: string, id: string, d: Partial<ApiEnvironmentTask>)   => put<ApiEnvironmentTask>(`/pets/${petId}/environment/${id}`, d),
+  delete: (petId: string, id: string) => del(`/pets/${petId}/environment/${id}`),
+};
+
 /* ── Chat ───────────────────────────────────────────────────────────────── */
 export const chatApi = {
   history: (pet_id?: string) =>
@@ -227,6 +235,10 @@ export interface ApiMemory {
 export interface ApiCalendarEvent {
   id: string; pet_id: string; title: string; date: string; time: string; all_day: boolean; emoji: string;
 }
+export interface ApiEnvironmentTask {
+  id: string; pet_id: string; name: string; frequency: string;
+  interval_days: number; last_completed: string; next_due: string;
+}
 export interface ApiVet {
   id: string; owner_id: string; name: string; clinic: string; phone: string; alt_phone: string; address: string;
 }
@@ -256,3 +268,29 @@ export interface ApiAlertRecordIn {
   sort_time?: number | null; status: string;
   created_at: number; expires_at: number;
 }
+
+/* ── AI Feature Types ───────────────────────────────────────────────────────── */
+export interface ApiWeightAnalysis {
+  ideal_min: number; ideal_max: number; goal: string; goal_amount: number; message: string;
+  trend_status: string; trend_message: string;
+}
+export interface ApiNutritionRec {
+  name: string; ingredients: string; reason: string; badge: string;
+}
+export interface ApiFoodEval {
+  suitable: boolean; reason: string; serving: string; alternative: string;
+}
+
+/* ── AI Feature APIs ────────────────────────────────────────────────────────── */
+export const weightAnalysisApi = {
+  analyze: (pet_id: string, logs: { date: string; weight: number }[]) =>
+    post<ApiWeightAnalysis>("/user/chat/weight-analysis", { pet_id, logs }),
+};
+export const nutritionRecsApi = {
+  recommend: (pet_id: string) =>
+    post<{ recipes: ApiNutritionRec[] }>("/user/chat/nutrition-recs", { pet_id }),
+};
+export const foodEvalApi = {
+  evaluate: (pet_id: string, food: string, ingredients: string) =>
+    post<ApiFoodEval>("/user/chat/food-eval", { pet_id, food, ingredients }),
+};

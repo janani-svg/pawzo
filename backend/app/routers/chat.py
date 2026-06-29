@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Pet, ChatMessage
+from app.models.models import User, Pet, ChatMessage, WeightEntry
 from app.schemas.schemas import (
     ChatSend, ChatMessageOut, ChatResponse, MessageResponse,
     MealSuggestionRequest, MealSuggestionItem, MealSuggestionsOut,
+    WeightAnalysisRequest, WeightAnalysisOut, WeightLogEntry,
+    NutritionRecsRequest, NutritionRecItem, NutritionRecsOut,
+    FoodEvalRequest, FoodEvalOut,
 )
 from app.auth import get_current_user
 from typing import List, Optional
@@ -228,6 +231,292 @@ async def suggest_meals(
     # Fallback: species-based hardcoded plan
     raw_list = _MEAL_FALLBACK.get(pet.species, _MEAL_FALLBACK_DEFAULT)
     return MealSuggestionsOut(suggestions=[MealSuggestionItem(**m) for m in raw_list])
+
+
+_WEIGHT_FALLBACKS: dict[str, tuple[float, float]] = {
+    "Dog": (5.0, 35.0), "Cat": (3.5, 6.0), "Bird": (0.05, 0.5),
+    "Rabbit": (1.5, 4.0), "Hamster": (0.08, 0.2), "Guinea pig": (0.7, 1.2),
+    "Fish": (0.05, 2.0), "Reptile": (0.2, 5.0), "Tortoise": (0.5, 10.0),
+}
+
+_NUTRITION_FALLBACKS: dict[str, list[dict]] = {
+    "Dog": [
+        {"name": "Chicken & Rice Bowl", "ingredients": "1.5 cups cooked chicken + 2 cups rice + 1 carrot (boiled)", "reason": "Complete protein with easy-to-digest carbs, ideal for most dogs.", "badge": "Recommended"},
+        {"name": "Sweet Potato & Egg", "ingredients": "2 boiled eggs + 1 medium sweet potato + ½ cup peas", "reason": "High protein and beta-carotene for healthy coat and muscles.", "badge": "High protein"},
+        {"name": "Veggie Dal Khichdi", "ingredients": "½ cup lentils + ½ cup rice + 1 carrot + 1 potato (no salt)", "reason": "Dog-safe comfort food with slow-digesting carbs.", "badge": "Occasional"},
+    ],
+    "Cat": [
+        {"name": "Tuna & Rice Bowl", "ingredients": "½ cup cooked tuna + ½ cup rice + 1 tsp fish oil", "reason": "High-protein tuna meets a cat's essential amino acid needs.", "badge": "Recommended"},
+        {"name": "Chicken Broth Meal", "ingredients": "1 cup shredded chicken + ½ cup broth + 1 tsp pumpkin puree", "reason": "Warm broth encourages hydration in cats.", "badge": "High protein"},
+        {"name": "Egg & Pumpkin Mix", "ingredients": "2 scrambled eggs + 2 tbsp mashed pumpkin", "reason": "Easy-to-digest, high protein with added fibre.", "badge": "Light meal"},
+    ],
+    "Bird": [
+        {"name": "Seed & Greens Mix", "ingredients": "2 tbsp mixed seeds + ½ cup chopped leafy greens + 1 tbsp grated carrot", "reason": "Balanced seeds with fresh vegetables for daily nutrition.", "badge": "Recommended"},
+        {"name": "Fruit & Pellet Bowl", "ingredients": "1 tbsp pellets + ¼ cup diced apple + 1 tbsp pomegranate seeds", "reason": "Natural sugars with essential vitamins.", "badge": "High protein"},
+        {"name": "Boiled Egg Crumble", "ingredients": "1 boiled egg (crumbled) + 1 tbsp millet", "reason": "Occasional protein boost for moulting birds.", "badge": "Occasional"},
+    ],
+}
+_NUTRITION_FALLBACK_DEFAULT = [
+    {"name": "Morning Bowl", "ingredients": "1.5 cups species-appropriate protein + 1 cup vegetables", "reason": "Balanced morning feed to start the day.", "badge": "Recommended"},
+    {"name": "Midday Snack", "ingredients": "½ cup fresh vegetables or fruit (species-safe)", "reason": "Natural treats add enrichment and nutrients.", "badge": "Light meal"},
+    {"name": "Evening Meal", "ingredients": "1 cup protein + ½ cup cooked grains", "reason": "Hearty evening meal for overnight energy.", "badge": "Recommended"},
+]
+
+_TOXIC_KEYWORDS = ["onion", "garlic", "chocolate", "grape", "raisin", "xylitol", "avocado", "macadamia", "alcohol", "caffeine", "leek", "chive"]
+
+
+
+@router.post("/chat/weight-analysis", response_model=WeightAnalysisOut)
+async def weight_analysis(
+    body: WeightAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Pet).where(Pet.id == body.pet_id, Pet.owner_id == current_user.id)
+    )
+    pet = result.scalar_one_or_none()
+    if not pet:
+        raise HTTPException(404, "Pet not found")
+
+    # Use logs sent from frontend (already sorted by date asc); fall back to DB query
+    if body.logs:
+        sorted_logs = sorted(body.logs, key=lambda l: l.date)
+        log_pairs = [(l.weight, l.date) for l in sorted_logs]
+        current_weight = log_pairs[-1][0]
+    else:
+        db_logs = await db.execute(
+            select(WeightEntry)
+            .where(WeightEntry.pet_id == body.pet_id)
+            .order_by(WeightEntry.date.asc())
+        )
+        entries = db_logs.scalars().all()
+        log_pairs = [(e.weight, e.date) for e in entries]
+        current_weight = log_pairs[-1][0] if log_pairs else (float(pet.weight) if pet.weight else 0.0)
+
+    breed_str = f" ({pet.breed})" if pet.breed else ""
+
+    # Compute trend locally (fast, no AI needed)
+    def _compute_trend_local(logs: list, name: str) -> tuple[str, str]:
+        from datetime import date as _date
+        if len(logs) < 2:
+            return "normal", "Log more entries over time to see a trend analysis."
+
+        weights_only = [w for w, _ in logs]
+        peak_w = max(weights_only)
+        last_w, last_d = logs[-1]
+
+        # Check for significant drop from peak (>20% loss from highest recorded weight)
+        drop_from_peak = peak_w - last_w
+        drop_pct = drop_from_peak / max(peak_w, 0.001)
+        if drop_pct > 0.20 and drop_from_peak * 1000 > 5:
+            return (
+                "warning",
+                f"⚠️ {name} has dropped {drop_from_peak*1000:.0f}g from their peak of {peak_w*1000:.0f}g "
+                f"(a {drop_pct*100:.0f}% loss). This is a significant decline — please consult a vet."
+            )
+
+        # Check consecutive pairs for sudden spikes or fast rates
+        for i in range(1, len(logs)):
+            prev_w, prev_d = logs[i - 1]
+            curr_w, curr_d = logs[i]
+            days_apart = max((_date.fromisoformat(curr_d) - _date.fromisoformat(prev_d)).days, 1)
+            change_g = (curr_w - prev_w) * 1000
+            pct_change = abs(curr_w - prev_w) / max(prev_w, 0.001)
+            if pct_change > 0.10 and days_apart <= 7:
+                direction = "gain" if change_g > 0 else "loss"
+                return (
+                    "warning",
+                    f"⚠️ Sudden {direction} of {abs(change_g):.0f}g in {days_apart} day(s). "
+                    "Rapid changes may indicate illness or a logging error — consult a vet if it continues."
+                )
+            threshold = 3.0 if prev_w <= 0.5 else 10.0
+            rate_g_per_day = abs(change_g) / days_apart
+            if rate_g_per_day > threshold:
+                verb = "gained" if change_g > 0 else "lost"
+                return (
+                    "caution",
+                    f"📊 {abs(change_g):.0f}g {verb} in {days_apart} day(s) (~{rate_g_per_day:.1f}g/day). "
+                    "Monitor closely — a slower pace is generally healthier."
+                )
+
+        first_w, first_d = logs[0]
+        total_days = max((_date.fromisoformat(last_d) - _date.fromisoformat(first_d)).days, 1)
+        total_g = (last_w - first_w) * 1000
+        verb = "gained" if total_g > 0 else "lost"
+        rate = abs(total_g) / total_days
+        return (
+            "normal",
+            f"✅ {name} has {verb} {abs(total_g):.0f}g over {total_days} day(s) (~{rate:.1f}g/day) — a healthy, gradual pace."
+        )
+
+    trend_status, trend_message = _compute_trend_local(log_pairs, pet.name)
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key and current_weight > 0:
+        try:
+            client = AsyncOpenAI(api_key=api_key)
+            log_summary = ", ".join(f"{w*1000:.0f}g on {d}" for w, d in log_pairs[-10:])
+            prompt = (
+                f"Analyse the weight history of {pet.name}, a {pet.species}{breed_str}. "
+                f"Weight logs (most recent 10): [{log_summary}]. "
+                f"Current weight: {current_weight*1000:.0f}g ({current_weight:.4f} kg). "
+                f"Return JSON only: {{\"ideal_min\": float (kg), \"ideal_max\": float (kg), "
+                f"\"goal\": \"maintain\"|\"gain\"|\"lose\", \"goal_amount\": float (kg, 0 if maintain), "
+                f"\"message\": \"1-2 sentence friendly advice about current weight vs ideal\"}}"
+            )
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a certified veterinary nutritionist. Return valid JSON only, no markdown."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=250,
+                temperature=0.3,
+            )
+            raw = json.loads(response.choices[0].message.content.strip())
+            return WeightAnalysisOut(
+                ideal_min=float(raw.get("ideal_min", 0)),
+                ideal_max=float(raw.get("ideal_max", 0)),
+                goal=str(raw.get("goal", "maintain")),
+                goal_amount=float(raw.get("goal_amount", 0)),
+                message=str(raw.get("message", "")),
+                trend_status=trend_status,
+                trend_message=trend_message,
+            )
+        except Exception as exc:
+            log.error("Weight analysis OpenAI error: %s", exc)
+
+    lo, hi = _WEIGHT_FALLBACKS.get(pet.species, (1.0, 50.0))
+    if current_weight > 0:
+        if current_weight < lo:
+            goal, amt = "gain", round(lo - current_weight, 4)
+            msg = f"{pet.name} is underweight for a {pet.species}. Aim to gain {amt*1000:.0f}g to reach the healthy range."
+        elif current_weight > hi:
+            goal, amt = "lose", round(current_weight - hi, 4)
+            msg = f"{pet.name} is above the ideal range. A gradual loss of {amt*1000:.0f}g is recommended."
+        else:
+            goal, amt = "maintain", 0.0
+            msg = f"{pet.name}'s weight is within the healthy range ({lo*1000:.0f}–{hi*1000:.0f}g). Keep it up!"
+    else:
+        goal, amt, msg = "maintain", 0.0, f"Typical ideal weight for a {pet.species} is {lo*1000:.0f}–{hi*1000:.0f}g."
+
+    return WeightAnalysisOut(ideal_min=lo, ideal_max=hi, goal=goal, goal_amount=amt, message=msg,
+                             trend_status=trend_status, trend_message=trend_message)
+
+
+@router.post("/chat/nutrition-recs", response_model=NutritionRecsOut)
+async def nutrition_recs(
+    body: NutritionRecsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Pet).where(Pet.id == body.pet_id, Pet.owner_id == current_user.id)
+    )
+    pet = result.scalar_one_or_none()
+    if not pet:
+        raise HTTPException(404, "Pet not found")
+
+    region = pet.region or "your region"
+    breed_str = f" ({pet.breed})" if pet.breed else ""
+    weight_str = f", {pet.weight} kg" if pet.weight else ""
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        try:
+            client = AsyncOpenAI(api_key=api_key)
+            prompt = (
+                f"Suggest 3 home-cooked recipes for {pet.name}, a {pet.species}{breed_str}{weight_str}, living in {region}. "
+                f"Use locally available ingredients. Specify amounts in household measures (cups, tablespoons, eggs, medium/large vegetables). "
+                f"No calories. Return JSON only: {{\"recipes\": ["
+                f"{{\"name\": str, \"ingredients\": str, \"reason\": str, \"badge\": \"Recommended\"|\"High protein\"|\"Occasional\"|\"Light meal\"}}]}}"
+            )
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a veterinary nutritionist. Return valid JSON only, no markdown."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=600,
+                temperature=0.7,
+            )
+            raw = json.loads(response.choices[0].message.content.strip())
+            items = [NutritionRecItem(**r) for r in raw.get("recipes", [])[:3]]
+            if items:
+                return NutritionRecsOut(recipes=items)
+        except Exception as exc:
+            log.error("Nutrition recs OpenAI error: %s", exc)
+
+    raw_list = _NUTRITION_FALLBACKS.get(pet.species, _NUTRITION_FALLBACK_DEFAULT)
+    return NutritionRecsOut(recipes=[NutritionRecItem(**r) for r in raw_list])
+
+
+@router.post("/chat/food-eval", response_model=FoodEvalOut)
+async def food_eval(
+    body: FoodEvalRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Pet).where(Pet.id == body.pet_id, Pet.owner_id == current_user.id)
+    )
+    pet = result.scalar_one_or_none()
+    if not pet:
+        raise HTTPException(404, "Pet not found")
+
+    food_desc = body.food
+    if body.ingredients:
+        food_desc += f" (ingredients: {body.ingredients})"
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        try:
+            client = AsyncOpenAI(api_key=api_key)
+            prompt = (
+                f"Evaluate if '{food_desc}' is suitable for {pet.name}, a {pet.species}. "
+                f"Return JSON only: {{\"suitable\": bool, \"reason\": \"1-2 sentences\", "
+                f"\"serving\": \"household-measure amount e.g. 1.5 cups cooked chicken + 1 medium carrot (~350g total)\", "
+                f"\"alternative\": \"safer option if not suitable, else empty string\"}}"
+            )
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a veterinary nutritionist. Return valid JSON only, no markdown."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=280,
+                temperature=0.3,
+            )
+            raw = json.loads(response.choices[0].message.content.strip())
+            return FoodEvalOut(
+                suitable=bool(raw.get("suitable", True)),
+                reason=str(raw.get("reason", "")),
+                serving=str(raw.get("serving", "")),
+                alternative=str(raw.get("alternative", "")),
+            )
+        except Exception as exc:
+            log.error("Food eval OpenAI error: %s", exc)
+
+    # Simple keyword-based fallback
+    combined = (body.food + " " + body.ingredients).lower()
+    found_toxic = [t for t in _TOXIC_KEYWORDS if t in combined]
+    if found_toxic:
+        return FoodEvalOut(
+            suitable=False,
+            reason=f"{', '.join(t.title() for t in found_toxic)} can be harmful to {pet.species}s and should be avoided.",
+            serving="",
+            alternative=f"Plain boiled chicken or fish with rice is a safe alternative for a {pet.species}.",
+        )
+    return FoodEvalOut(
+        suitable=True,
+        reason=f"This food appears safe for {pet.name}. Always ensure no harmful additives or seasonings are included.",
+        serving=f"Serve approximately 1–2 cups as a portion appropriate for a {pet.species}.",
+        alternative="",
+    )
 
 
 @router.get("/chat/history", response_model=List[ChatMessageOut])

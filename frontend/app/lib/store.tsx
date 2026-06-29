@@ -4,10 +4,10 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useRouter } from "next/navigation";
 import {
   authApi, petsApi, mealsApi, mealLogsApi, vaccinationsApi, healthApi,
-  weightsApi, expensesApi, milestonesApi, memoriesApi, calendarApi, userApi, documentsApi, alertsApi,
+  weightsApi, expensesApi, milestonesApi, memoriesApi, calendarApi, environmentApi, userApi, documentsApi, alertsApi,
   type ApiPet, type ApiMeal, type ApiMealLog, type ApiVaccination,
   type ApiWeightEntry, type ApiHealthRecord, type ApiExpense,
-  type ApiMilestone, type ApiMemory, type ApiCalendarEvent, type ApiVet, type ApiSettings, type ApiDocument,
+  type ApiMilestone, type ApiMemory, type ApiCalendarEvent, type ApiEnvironmentTask, type ApiVet, type ApiSettings, type ApiDocument,
   type ApiAlertRecord, type ApiAlertRecordIn,
 } from "./api";
 
@@ -28,6 +28,7 @@ export type Expense     = { id: string; petId: string; category: string; amount:
 export type Milestone   = { id: string; petId: string; emoji: string; title: string; date: string };
 export type Memory      = { id: string; petId: string; photo: string; caption: string; date: string; title: string; mood: string; tags: string; mediaType: string; timeTaken: string };
 export type CalendarEvent = { id: string; petId: string; title: string; date: string; time: string; allDay: boolean; emoji: string };
+export type EnvTask     = { id: string; petId: string; name: string; frequency: string; intervalDays: number; lastCompleted: string; nextDue: string };
 export type Vet         = { name: string; clinic: string; phone: string; altPhone: string; address: string } | null;
 export type Document    = { id: string; name: string; category: string; fileData: string; mimeType: string; uploadedAt: string };
 export type Settings    = { theme: "light" | "dark" | "auto"; push: boolean; email: boolean; sound: boolean; units: "metric" | "imperial"; currency: string; language: string };
@@ -51,6 +52,7 @@ export type State = {
   milestones: Milestone[];
   memories: Memory[];
   events: CalendarEvent[];
+  environment: EnvTask[];
   vet: Vet;
   documents: Document[];
   settings: Settings;
@@ -63,13 +65,13 @@ export type State = {
 const EMPTY: State = {
   accounts: [], currentUserId: null, currentUserName: "", currentUserUsername: "", currentUserEmail: "", currentUserPhoto: "", emailVerified: false, selectedPetId: null,
   pets: [], meals: [], mealLogs: [], vaccinations: [], weights: [], health: [],
-  expenses: [], milestones: [], memories: [], events: [], vet: null, documents: [],
+  expenses: [], milestones: [], memories: [], events: [], environment: [], vet: null, documents: [],
   settings: { theme: "light", push: true, email: false, sound: true, units: "metric", currency: "USD", language: "English" },
   activity: [], streakCount: 0, streakBroken: false,
   pastAlerts: [],
 };
 
-type CollKey = "meals" | "mealLogs" | "vaccinations" | "weights" | "health" | "expenses" | "milestones" | "memories" | "events";
+type CollKey = "meals" | "mealLogs" | "vaccinations" | "weights" | "health" | "expenses" | "milestones" | "memories" | "events" | "environment";
 
 /* ─── API ↔ Frontend converters ──────────────────────────────────────────── */
 const toPet = (p: ApiPet): Pet => ({
@@ -89,6 +91,7 @@ const toExpense     = (e: ApiExpense):      Expense     => ({ id: e.id, petId: e
 const toMilestone   = (m: ApiMilestone):   Milestone   => ({ id: m.id, petId: m.pet_id, emoji: m.emoji ?? "", title: m.title, date: m.date });
 const toMemory      = (m: ApiMemory):       Memory      => ({ id: m.id, petId: m.pet_id, photo: m.photo_url ?? "", caption: m.caption ?? "", date: m.date, title: m.title ?? "", mood: m.mood ?? "", tags: m.tags ?? "", mediaType: m.media_type ?? "photo", timeTaken: m.time_taken ?? "" });
 const toEvent       = (e: ApiCalendarEvent): CalendarEvent => ({ id: e.id, petId: e.pet_id, title: e.title, date: e.date, time: e.time ?? "", allDay: e.all_day ?? false, emoji: e.emoji ?? "" });
+const toEnvTask     = (t: ApiEnvironmentTask): EnvTask => ({ id: t.id, petId: t.pet_id, name: t.name, frequency: t.frequency ?? "Weekly", intervalDays: t.interval_days ?? 7, lastCompleted: t.last_completed ?? "", nextDue: t.next_due ?? "" });
 const toVet         = (v: ApiVet | null): Vet => v ? { name: v.name, clinic: v.clinic ?? "", phone: v.phone ?? "", altPhone: v.alt_phone ?? "", address: v.address ?? "" } : null;
 const toDocument    = (d: ApiDocument): Document => ({ id: d.id, name: d.name, category: d.category, fileData: d.file_data, mimeType: d.mime_type, uploadedAt: d.uploaded_at });
 const toSettings    = (s: ApiSettings): Settings => ({ theme: (s.theme as Settings["theme"]) ?? "light", push: s.push, email: s.email, sound: s.sound, units: (s.units as Settings["units"]) ?? "metric", currency: s.currency ?? "USD", language: s.language ?? "English" });
@@ -152,7 +155,7 @@ async function loadAll(userId: string): Promise<Partial<State>> {
   const pets = (await petsApi.list()).map(toPet);
   const ids  = pets.map((p) => p.id);
 
-  const [meals, mealLogs, vaccinations, weights, health, expenses, milestones, memories, events, vet, docs, settings, activityRes, meRes, pastAlerts] =
+  const [meals, mealLogs, vaccinations, weights, health, expenses, milestones, memories, events, environment, vet, docs, settings, activityRes, meRes, pastAlerts] =
     await Promise.all([
       Promise.all(ids.map((id) => mealsApi.list(id))).then((r) => r.flat().map(toMeal)).catch(() => [] as Meal[]),
       Promise.all(ids.map((id) => mealLogsApi.list(id))).then((r) => r.flat().map(toMealLog)).catch(() => [] as MealLog[]),
@@ -163,6 +166,7 @@ async function loadAll(userId: string): Promise<Partial<State>> {
       Promise.all(ids.map((id) => milestonesApi.list(id))).then((r) => r.flat().map(toMilestone)).catch(() => [] as Milestone[]),
       Promise.all(ids.map((id) => memoriesApi.list(id))).then((r) => r.flat().map(toMemory)).catch(() => [] as Memory[]),
       Promise.all(ids.map((id) => calendarApi.list(id))).then((r) => r.flat().map(toEvent)).catch(() => [] as CalendarEvent[]),
+      Promise.all(ids.map((id) => environmentApi.list(id))).then((r) => r.flat().map(toEnvTask)).catch(() => [] as EnvTask[]),
       userApi.getVet().then(toVet).catch(() => null as Vet),
       documentsApi.list().then((r) => r.map(toDocument)).catch(() => [] as Document[]),
       userApi.getSettings().then(toSettings).catch(() => EMPTY.settings),
@@ -176,7 +180,7 @@ async function loadAll(userId: string): Promise<Partial<State>> {
     currentUserPhoto: meRes?.photo_url ?? "",
     pets,
     meals, mealLogs, vaccinations, weights, health,
-    expenses, milestones, memories, events,
+    expenses, milestones, memories, events, environment,
     vet, documents: docs, settings,
     activity: activityRes.dates,
     streakCount: activityRes.streak,
@@ -399,6 +403,20 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
       });
       const pet = toPet(res);
       mutate((s) => ({ ...s, pets: [...s.pets, pet], selectedPetId: pet.id }));
+
+      // Smart auto-create: seed recommended environment tasks for the species.
+      const defaults = ENV_DEFAULTS[pet.species] ?? [];
+      if (defaults.length) {
+        const today = todayISO();
+        Promise.all(defaults.map((d) =>
+          environmentApi.create(pet.id, {
+            name: d.name, frequency: freqLabel(d.intervalDays), interval_days: d.intervalDays,
+            last_completed: "", next_due: addDays(today, d.intervalDays),
+          })
+        )).then((created) => {
+          mutate((s) => ({ ...s, environment: [...s.environment, ...created.map(toEnvTask)] }));
+        }).catch(console.error);
+      }
       return pet.id;
     },
 
@@ -431,6 +449,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         milestones: s.milestones.filter((x) => x.petId !== id),
         memories: s.memories.filter((x) => x.petId !== id),
         events: s.events.filter((x) => x.petId !== id),
+        environment: s.environment.filter((x) => x.petId !== id),
       }));
       petsApi.delete(id).catch(console.error);
     },
@@ -583,6 +602,7 @@ const COLL_ROUTE: Record<CollKey, string> = {
   meals: "meals", mealLogs: "meal-logs", vaccinations: "vaccinations",
   weights: "weights", health: "health", expenses: "expenses",
   milestones: "milestones", memories: "memories", events: "events",
+  environment: "environment",
 };
 
 /* Convert frontend item fields → API body (snake_case) */
@@ -598,6 +618,11 @@ function toApiBody(coll: CollKey, item: Record<string, unknown>): Record<string,
   }
   if (coll === "mealLogs"     && "mealId"  in body) { body.meal_id     = body.mealId;  delete body.mealId; }
   if (coll === "events"       && "allDay"  in body) { body.all_day     = body.allDay;  delete body.allDay; }
+  if (coll === "environment") {
+    if ("intervalDays"  in body) { body.interval_days  = body.intervalDays;  delete body.intervalDays; }
+    if ("lastCompleted" in body) { body.last_completed = body.lastCompleted; delete body.lastCompleted; }
+    if ("nextDue"       in body) { body.next_due       = body.nextDue;       delete body.nextDue; }
+  }
   return body;
 }
 
@@ -617,6 +642,11 @@ function convertFromApi(coll: CollKey, petId: string, res: Record<string, unknow
   }
   if (coll === "events")       { base.allDay   = res.all_day  ?? false; delete (base as Record<string, unknown>).all_day; }
   if (coll === "mealLogs")     { base.mealId  = res.meal_id ?? "";     delete (base as Record<string, unknown>).meal_id; }
+  if (coll === "environment") {
+    base.intervalDays  = res.interval_days  ?? 7;   delete (base as Record<string, unknown>).interval_days;
+    base.lastCompleted = res.last_completed ?? "";  delete (base as Record<string, unknown>).last_completed;
+    base.nextDue       = res.next_due       ?? "";  delete (base as Record<string, unknown>).next_due;
+  }
   return base;
 }
 
@@ -633,6 +663,7 @@ async function callCreate(coll: CollKey, petId: string, body: Record<string, unk
     case "milestones":    res = await milestonesApi.create(petId, apiBody as never);    break;
     case "memories":      res = await memoriesApi.create(petId, apiBody as never);      break;
     case "events":        res = await calendarApi.create(petId, apiBody as never);      break;
+    case "environment":   res = await environmentApi.create(petId, apiBody as never);   break;
     default:
       throw new Error(`No create route for ${route}`);
   }
@@ -650,6 +681,7 @@ async function callUpdate(coll: CollKey, petId: string, id: string, patch: Recor
     case "milestones":    await milestonesApi.update(petId, id, apiPatch as never);    break;
     case "memories":      await memoriesApi.update(petId, id, apiPatch as never);      break;
     case "events":        await calendarApi.update(petId, id, apiPatch as never);      break;
+    case "environment":   await environmentApi.update(petId, id, apiPatch as never);   break;
   }
 }
 
@@ -663,6 +695,7 @@ async function callDelete(coll: CollKey, petId: string, id: string): Promise<voi
     case "milestones":    await milestonesApi.delete(petId, id);    break;
     case "memories":      await memoriesApi.delete(petId, id);      break;
     case "events":        await calendarApi.delete(petId, id);      break;
+    case "environment":   await environmentApi.delete(petId, id);   break;
   }
 }
 
@@ -691,6 +724,71 @@ export function fileToDataURL(file: File, max = 900): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/* ─── Environment task helpers ────────────────────────────────────────────── */
+/* Format a Date using its LOCAL calendar fields (toISOString would shift to UTC
+   and drop a day for timezones ahead of UTC, e.g. IST). */
+function localISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function addDays(iso: string, n: number): string {
+  const d = new Date((iso || todayISO()) + "T00:00:00"); // parse as local midnight
+  if (isNaN(d.getTime())) { const t = new Date(); t.setDate(t.getDate() + n); return localISO(t); }
+  d.setDate(d.getDate() + n);
+  return localISO(d);
+}
+
+/* Human-friendly frequency label from an interval in days. */
+export function freqLabel(days: number): string {
+  if (days === 1)  return "Daily";
+  if (days === 7)  return "Weekly";
+  if (days === 30) return "Monthly";
+  if (days === 365) return "Yearly";
+  if (days > 30 && days % 30 === 0) return `Every ${days / 30} Months`;
+  return `Every ${days} Days`;
+}
+
+/* Next-due = last completed (or today) + interval. */
+export function computeNextDue(lastCompleted: string, intervalDays: number): string {
+  return addDays(lastCompleted || todayISO(), intervalDays);
+}
+
+export type EnvStatus = "completed" | "upcoming" | "due" | "overdue";
+export function envTaskStatus(t: EnvTask): EnvStatus {
+  if (t.lastCompleted && t.lastCompleted === todayISO()) return "completed";
+  const d = daysUntil(t.nextDue);
+  if (d < 0)  return "overdue";
+  if (d <= 2) return "due";
+  return "upcoming";
+}
+
+/* Species-specific task catalogue (full list shown as quick-add suggestions). */
+export const ENV_TASK_TEMPLATES: Record<string, { name: string; intervalDays: number }[]> = {
+  Dog:          [{ name: "Bed Cleaning", intervalDays: 7 }, { name: "Toy Cleaning", intervalDays: 10 }, { name: "Outdoor Area Maintenance", intervalDays: 7 }, { name: "Grooming Area Maintenance", intervalDays: 30 }],
+  Cat:          [{ name: "Litter Box Cleaning", intervalDays: 1 }, { name: "Litter Replacement", intervalDays: 7 }, { name: "Bed Cleaning", intervalDays: 7 }, { name: "Scratching Post Maintenance", intervalDays: 30 }],
+  Fish:         [{ name: "Tank Cleaning", intervalDays: 14 }, { name: "Water Change", intervalDays: 7 }, { name: "Filter Cleaning", intervalDays: 30 }, { name: "Water Temperature Monitoring", intervalDays: 1 }],
+  Hamster:      [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }, { name: "Water Bottle Cleaning", intervalDays: 3 }, { name: "Wheel & Toy Maintenance", intervalDays: 7 }],
+  Tortoise:     [{ name: "Enclosure Cleaning", intervalDays: 7 }, { name: "UV Lamp Replacement", intervalDays: 180 }, { name: "Basking Area Check", intervalDays: 1 }, { name: "Substrate Replacement", intervalDays: 30 }],
+  Reptile:      [{ name: "Habitat Cleaning", intervalDays: 7 }, { name: "Humidity Monitoring", intervalDays: 1 }, { name: "Temperature Monitoring", intervalDays: 1 }, { name: "UVB Bulb Replacement", intervalDays: 180 }],
+  Bird:         [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Perch Cleaning", intervalDays: 7 }, { name: "Water Replacement", intervalDays: 1 }, { name: "Toy Rotation", intervalDays: 14 }],
+  Rabbit:       [{ name: "Hutch Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }, { name: "Litter Box Cleaning", intervalDays: 3 }, { name: "Hay Storage Monitoring", intervalDays: 7 }],
+  "Guinea pig": [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }, { name: "Water Bottle Cleaning", intervalDays: 3 }, { name: "Hay Storage Monitoring", intervalDays: 7 }],
+  Other:        [{ name: "Habitat Cleaning", intervalDays: 7 }, { name: "Bedding / Litter Replacement", intervalDays: 7 }, { name: "Water Replacement", intervalDays: 1 }],
+};
+
+/* Subset auto-created the moment a pet is added (user can edit/remove later). */
+export const ENV_DEFAULTS: Record<string, { name: string; intervalDays: number }[]> = {
+  Dog:          [{ name: "Bed Cleaning", intervalDays: 7 }, { name: "Toy Cleaning", intervalDays: 10 }],
+  Cat:          [{ name: "Litter Box Cleaning", intervalDays: 1 }, { name: "Litter Replacement", intervalDays: 7 }],
+  Fish:         [{ name: "Tank Cleaning", intervalDays: 14 }, { name: "Water Change", intervalDays: 7 }, { name: "Filter Cleaning", intervalDays: 30 }],
+  Hamster:      [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }],
+  Tortoise:     [{ name: "Enclosure Cleaning", intervalDays: 7 }, { name: "UV Lamp Replacement", intervalDays: 180 }],
+  Reptile:      [{ name: "Habitat Cleaning", intervalDays: 7 }, { name: "UVB Bulb Replacement", intervalDays: 180 }],
+  Bird:         [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Water Replacement", intervalDays: 1 }],
+  Rabbit:       [{ name: "Hutch Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }],
+  "Guinea pig": [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }],
+};
 
 export type Alert = { id: string; emoji: string; title: string; body: string; when: string; group: "Today" | "Upcoming"; color: string; sortTime: number; status?: "completed" | "missed" | "upcoming" };
 
@@ -779,6 +877,11 @@ export function deriveAlerts(state: State): Alert[] {
   const VAC_OVER_EMOJI   = ["🚨", "😱", "😨", "🏥"];
   const VAC_SOON_EMOJI   = ["🩺", "🏥", "📋", "🗓️"];
   const VAC_COLOR        = ["#DBEAFE", "#E0F2FE", "#EFF6FF"];
+
+  const ENV_OVER_EMOJI   = ["🧹", "🪣", "🚨", "🧽"];
+  const ENV_OVER_COLOR   = ["#FEE2E2", "#FFF1F2", "#FFEDD5"];
+  const ENV_SOON_EMOJI   = ["🏡", "🧼", "🪴", "✨", "🧹"];
+  const ENV_SOON_COLOR   = ["#F0FDFA", "#ECFEFF", "#EFF6FF", "#FEF9C3"];
 
   /* ── Streak milestones ───────────────────────────────────────────────── */
   if (state.streakCount === 100 || state.streakCount === 1000) {
@@ -892,6 +995,22 @@ export function deriveAlerts(state: State): Alert[] {
       const seed = v.id + pet.id;
       const days = daysUntil(v.nextDue);
       if (days <= 30) out.push({ id: `vac-${v.id}`, emoji: days < 0 ? pick(VAC_OVER_EMOJI, seed) : pick(VAC_SOON_EMOJI, seed), title: `${v.name} ${days < 0 ? "overdue" : "due soon"}`, body: days < 0 ? `${pet.name} is overdue for ${v.name}! Book the vet ASAP.` : `${pet.name} needs ${v.name} in ${days} day${days > 1 ? "s" : ""}.`, when: fmtDateTime(new Date(v.nextDue).getTime()), group: days <= 0 ? "Today" : "Upcoming", color: pick(VAC_COLOR, seed), sortTime: days < 0 ? new Date(v.nextDue).getTime() : now.getTime() - 1 - days * 1000, status: days < 0 ? "missed" as const : "upcoming" as const });
+    }
+
+    /* ── Environment / Habitat maintenance ─────────────────────────── */
+    for (const t of state.environment.filter((e) => e.petId === pet.id && e.nextDue)) {
+      if (t.lastCompleted === today) continue; // freshly done — don't nag
+      const seed = t.id + pet.id;
+      const days = daysUntil(t.nextDue);
+      const lname = t.name.toLowerCase();
+      const dueMs = new Date(t.nextDue + "T00:00:00").getTime();
+      if (days < 0) {
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_OVER_EMOJI, seed), title: `${t.name} overdue`, body: `${pet.name}'s ${lname} is overdue by ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""}. Time to freshen up their space! 🧹`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_OVER_COLOR, seed), sortTime: dueMs, status: "missed" as const });
+      } else if (days <= 2) {
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in 2 days"}`, body: `${pet.name}'s ${lname} is coming up. Keep their habitat clean and comfy! 🏡`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const });
+      } else if (days <= 7) {
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due in ${days} days`, body: `${pet.name}'s ${lname} is due ${fmtDate(t.nextDue)}. Plan ahead! 🗓️`, when: `${fmtDate(t.nextDue)}, 12:00 AM`, group: "Upcoming", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const });
+      }
     }
 
     /* ── Birthdays ─────────────────────────────────────────────────── */

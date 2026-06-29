@@ -7,8 +7,7 @@ import os
 
 load_dotenv()
 
-# Build URL from parts so SQLAlchemy handles special characters in password correctly
-_db_url = URL.create(
+DATABASE_URL = os.getenv("DATABASE_URL") or URL.create(
     drivername="postgresql+asyncpg",
     username=os.getenv("DB_USER") or "postgres",
     password=os.getenv("DB_PASSWORD"),
@@ -17,10 +16,9 @@ _db_url = URL.create(
     database=os.getenv("DB_NAME") or "pawzo",
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL") or str(_db_url)
 is_supabase = os.getenv("DB_HOST", "").endswith("supabase.com")
 
-engine = create_async_engine(_db_url, echo=False, connect_args={"ssl": "require"} if is_supabase else {})
+engine = create_async_engine(DATABASE_URL, echo=False, connect_args={"ssl": "require"} if is_supabase else {})
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
