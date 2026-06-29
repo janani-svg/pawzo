@@ -9,27 +9,21 @@ import { usePawzo, useRequireAuth, todayISO, fileToDataURL } from "../lib/store"
 const CAT_EMOJI: Record<string, string> = { Vaccination: "💉", Insurance: "🛡️", Adoption: "🏠", "Medical Report": "🩺", ID: "🪪", Other: "📄" };
 
 
-/* ── Badge row ── */
+/* ── Badge chip (compact) ── */
 type BadgeState = "earned" | "just_earned" | "next" | "locked";
-function Badge({ emoji, name, desc, state, hint }: { emoji:string; name:string; desc:string; state:BadgeState; hint?:string }) {
-  const styles: Record<BadgeState, { card:React.CSSProperties; wrap:React.CSSProperties; nameColor:string; descColor:string }> = {
-    earned:      { card:{ background:"#FFF6EE", border:"1px solid #F0D8C0" },               wrap:{ background:"#FFE8D0" }, nameColor:"#3D1D54", descColor:"#A080B0" },
-    just_earned: { card:{ background:"#FDF6FF", border:"1px solid #DCC8F0", boxShadow:"0 0 0 2px #F0C8E8,0 2px 10px rgba(192,96,160,0.16)" }, wrap:{ background:"#EEE0FF" }, nameColor:"#3D1D54", descColor:"#9060B0" },
-    next:        { card:{ background:"#F8F8FA", border:"1px solid #E8E4EE", opacity:0.65 }, wrap:{ background:"#EEEAEE" }, nameColor:"#9898A8", descColor:"#BEBAC8" },
-    locked:      { card:{ background:"#F8F8FA", border:"1px solid #E8E4EE", opacity:0.35 }, wrap:{ background:"#EEEAEE" }, nameColor:"#AEAAB8", descColor:"#C4C0CC" },
+function Badge({ emoji, name, state, hint }: { emoji:string; name:string; desc:string; state:BadgeState; hint?:string }) {
+  const cfg: Record<BadgeState, { bg:string; border:string; dim:boolean; tag?:string; tagBg:string; tagColor:string }> = {
+    earned:      { bg:"#FFF6EE", border:"#F0D8C0", dim:false, tag:"✓",        tagBg:"#EAF7EF", tagColor:"#34A860" },
+    just_earned: { bg:"#FDF6FF", border:"#DCC8F0", dim:false, tag:"New!",     tagBg:"#FDF0FF", tagColor:"#C060A0" },
+    next:        { bg:"#F8F8FA", border:"#E8E4EE", dim:true,  tag:"Next",     tagBg:"#F0EEFF", tagColor:"#9060C0" },
+    locked:      { bg:"#F8F8FA", border:"#E8E4EE", dim:true,  tag:undefined,  tagBg:"",        tagColor:"" },
   };
-  const s = styles[state];
+  const c = cfg[state];
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 11px", borderRadius:13, ...s.card }}>
-      <div style={{ width:34, height:34, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, flexShrink:0, ...s.wrap }}>{emoji}</div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <p style={{ fontSize:12.5, fontWeight:700, color:s.nameColor, margin:"0 0 1px" }}>{name}</p>
-        <p style={{ fontSize:10, color:s.descColor, margin:0 }}>{hint ?? desc}</p>
-      </div>
-      {state==="earned"      && <span style={{ fontSize:9, fontWeight:700, color:"#74B08A", background:"#EAF7EF", padding:"2px 8px", borderRadius:20, flexShrink:0 }}>Earned</span>}
-      {state==="just_earned" && <span style={{ fontSize:9, fontWeight:700, color:"#C060A0", background:"#FDF0FF", padding:"2px 8px", borderRadius:20, flexShrink:0 }}>Just earned!</span>}
-      {state==="next"        && <span style={{ fontSize:9, fontWeight:700, color:"#9060C0", background:"#F5EEFF", padding:"2px 8px", borderRadius:20, flexShrink:0 }}>Next up</span>}
-      {state==="locked"      && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C8C0D0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"10px 6px 8px", borderRadius:14, background:c.bg, border:`1.5px solid ${c.border}`, opacity:c.dim ? 0.55 : 1, minWidth:72, flex:"0 0 auto", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+      <span style={{ fontSize:22 }}>{state === "locked" ? "🔒" : emoji}</span>
+      <p style={{ fontSize:9.5, fontWeight:700, color:"#5A3870", textAlign:"center", margin:0, lineHeight:1.3, maxWidth:64 }}>{hint ? hint.replace(" to unlock","") : name}</p>
+      {c.tag && <span style={{ fontSize:8, fontWeight:700, color:c.tagColor, background:c.tagBg, padding:"1px 6px", borderRadius:20 }}>{c.tag}</span>}
     </div>
   );
 }
@@ -246,40 +240,32 @@ export default function ProfilePage() {
         <input ref={docFileRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,.odt,.rtf" style={{ display:"none" }} onChange={handleDocUpload} />
 
         <div style={{ background:"var(--p-surface)", borderRadius:20, boxShadow:"0 3px 14px rgba(0,0,0,0.07)", overflow:"hidden", marginBottom:4 }}>
-          <div style={{ padding:"14px 16px 12px", display:"flex", alignItems:"center", gap:12, borderBottom:"1px solid #F3E8F0" }}>
-            <div style={{ width:42, height:42, borderRadius:13, background:"#FCEAF3", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C060A0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          {/* compact header row */}
+          <div style={{ padding:"11px 14px", display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:34, height:34, borderRadius:10, background:"#FCEAF3", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C060A0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <p style={{ fontSize:15, fontWeight:700, color:"#3D1D54", margin:"0 0 2px" }}>Document Vault</p>
-              <p style={{ fontSize:11, color:"#B090C0", margin:0 }}>Vaccination · Insurance · Adoption &amp; more</p>
+              <p style={{ fontSize:13, fontWeight:700, color:"#3D1D54", margin:0 }}>Document Vault</p>
+              <p style={{ fontSize:10, color:"#B090C0", margin:0 }}>Vaccination · Insurance · Adoption</p>
             </div>
-          </div>
-
-          <div style={{ padding:"13px 16px" }}>
-            <button onClick={() => docFileRef.current?.click()} disabled={docUploading} className="pawzo-press" style={{ width:"100%", padding:"12px 0", borderRadius:13, border:"1.5px dashed #D9B8EC", background:"#FDF7FF", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, color:"#B060A0", fontWeight:600, fontSize:13 }}>
-              <IconPlus color="#B060A0" size={15} />
-              {docUploading ? "Uploading…" : "Upload Document"}
+            <button onClick={() => docFileRef.current?.click()} disabled={docUploading} className="pawzo-press" style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 11px", borderRadius:10, border:"1.5px solid #D9B8EC", background:"#FDF7FF", cursor:"pointer", color:"#B060A0", fontWeight:700, fontSize:12, flexShrink:0 }}>
+              <IconPlus color="#B060A0" size={13} />
+              {docUploading ? "Uploading…" : "Upload"}
             </button>
           </div>
 
           {state.documents.length > 0 && (
-            <div style={{ padding:"0 16px 10px" }}>
+            <div style={{ padding:"0 14px 10px" }}>
               <div style={{ position:"relative" }}>
-                <svg style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.grayLight} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-                <input placeholder="Search documents…" value={docSearch} onChange={e => setDocSearch(e.target.value)} style={{ width:"100%", boxSizing:"border-box", padding:"8px 10px 8px 30px", borderRadius:10, border:"1.5px solid var(--p-border)", background:"var(--p-surface-2)", fontSize:12.5, color:T.ink, outline:"none" }} />
+                <svg style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.grayLight} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                <input placeholder="Search…" value={docSearch} onChange={e => setDocSearch(e.target.value)} style={{ width:"100%", boxSizing:"border-box", padding:"7px 10px 7px 28px", borderRadius:10, border:"1.5px solid var(--p-border)", background:"var(--p-surface-2)", fontSize:12, color:T.ink, outline:"none" }} />
               </div>
             </div>
           )}
 
           {state.documents.length === 0 && (
-            <div style={{ padding:"6px 20px 20px", textAlign:"center" }}>
-              <div style={{ width:46, height:46, borderRadius:14, background:"#FDF2F6", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4537E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              </div>
-              <p style={{ fontSize:13, fontWeight:700, color:"#5A3070", margin:"0 0 5px" }}>No documents yet</p>
-              <p style={{ fontSize:11, color:"#B090C0", lineHeight:1.55, margin:0 }}>Keep vaccination certs, insurance &amp;<br />adoption papers safe here.</p>
-            </div>
+            <p style={{ fontSize:11.5, color:"#B090C0", textAlign:"center", padding:"4px 16px 14px", margin:0 }}>No documents yet — upload certs, insurance &amp; more.</p>
           )}
 
           {state.documents.length > 0 && filteredDocs.length === 0 && (
@@ -358,37 +344,30 @@ export default function ProfilePage() {
             <span style={{ fontSize:11, fontWeight:600, color:"#B090C0", background:"#F5EEF8", padding:"3px 10px", borderRadius:20 }}>{totalEarned} earned</span>
           </div>
 
-          {/* streak section */}
+          {/* streak progress bar */}
           <SubLabel>🔥 Streak</SubLabel>
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
-              <span style={{ fontSize:10, fontWeight:600, color:"#9B7CA8" }}>Streak journey</span>
-              <span style={{ fontSize:9.5, color:"#C0A0C8" }}>
-                {currentStreak >= nextStreakMs ? `${currentStreak} days — top streak!` : `${currentStreak} / ${nextStreakMs} days to next`}
+          <div style={{ marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+              <span style={{ fontSize:9.5, fontWeight:600, color:"#9B7CA8" }}>Streak journey</span>
+              <span style={{ fontSize:9, color:"#C0A0C8" }}>
+                {currentStreak >= nextStreakMs ? `${currentStreak} days — top streak!` : `${currentStreak} / ${nextStreakMs} days`}
               </span>
             </div>
-            <div style={{ position:"relative", height:5, background:"#F0E8F5", borderRadius:3, margin:"8px 0 4px" }}>
+            <div style={{ position:"relative", height:5, background:"#F0E8F5", borderRadius:3, marginBottom:4 }}>
               <div style={{ position:"absolute", left:0, top:0, height:5, borderRadius:3, width:`${streakBarPct}%`, background:"linear-gradient(90deg,#E8A0C0,#C060A0)", transition:"width 0.4s ease" }} />
               {barMs.map((m, i) => {
                 const pct = ((i + 1) / barN) * 100;
                 const done = currentStreak >= m;
-                return <div key={m} style={{ position:"absolute", top:"50%", left:`${pct}%`, transform:"translate(-50%,-50%)", width:8, height:8, borderRadius:"50%", background: done ? "#C060A0" : "#E0D0EA", border:"2px solid #fff", boxShadow: done ? "0 0 0 3px rgba(192,96,160,0.2)" : "none" }} />;
-              })}
-            </div>
-            <div style={{ position:"relative", height:11 }}>
-              {barMs.map((m, i) => {
-                const pct = ((i + 1) / barN) * 100;
-                const done = currentStreak >= m;
-                return <span key={m} style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", fontSize:8.5, fontWeight: done ? 700 : 600, color: done ? "#C060A0" : "#C0A8D0", whiteSpace:"nowrap" }}>{m}d</span>;
+                return <div key={m} style={{ position:"absolute", top:"50%", left:`${pct}%`, transform:"translate(-50%,-50%)", width:8, height:8, borderRadius:"50%", background: done ? "#C060A0" : "#E0D0EA", border:"2px solid #fff" }} />;
               })}
             </div>
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+          <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:4 }}>
             {STREAK_MILESTONES.map((m, i) => {
               const prev = i > 0 ? STREAK_MILESTONES[i-1] : 0;
               const st = badgeState(currentStreak, m, prev, justEarnedStreak);
               const meta = streakMeta(m);
-              const hint = st === "next" ? `${m - currentStreak} more days to unlock` : undefined;
+              const hint = st === "next" ? `${m - currentStreak}d left` : undefined;
               return <Badge key={m} emoji={meta.emoji} name={meta.name} desc={meta.desc} state={st} hint={hint} />;
             })}
           </div>
@@ -397,21 +376,21 @@ export default function ProfilePage() {
 
           {/* pets section */}
           <SubLabel>🐾 Pets</SubLabel>
-          <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-            <Badge emoji="🏆" name="First Pet Added" desc="You started your Pawzo journey!" state={pets.length >= 1 ? (justEarnedPet ? "just_earned" : "earned") : "next"} />
-            <Badge emoji="🐶" name="Pet Family" desc="Added 3 pets" state={pets.length >= 3 ? "earned" : pets.length >= 1 ? "next" : "locked"} hint={pets.length < 3 ? `${3 - pets.length} more pets to unlock` : undefined} />
+          <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:4 }}>
+            <Badge emoji="🏆" name="First Pet" desc="You started your Pawzo journey!" state={pets.length >= 1 ? (justEarnedPet ? "just_earned" : "earned") : "next"} />
+            <Badge emoji="🐶" name="Pet Family" desc="Added 3 pets" state={pets.length >= 3 ? "earned" : pets.length >= 1 ? "next" : "locked"} hint={pets.length < 3 ? `${3 - pets.length} more` : undefined} />
           </div>
 
           <Divider />
 
           {/* memories section */}
           <SubLabel>📸 Memories</SubLabel>
-          <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:2 }}>
+          <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:2 }}>
             {MEM_MILESTONES.map((m, i) => {
               const prev = i > 0 ? MEM_MILESTONES[i-1] : 0;
               const st = badgeState(memCount, m, prev, justEarnedMem);
               const meta = MEM_META[m];
-              const hint = st === "next" ? `${m - memCount} more memories to unlock` : undefined;
+              const hint = st === "next" ? `${m - memCount} more` : undefined;
               return <Badge key={m} emoji={meta.emoji} name={meta.name} desc={meta.desc} state={st} hint={hint} />;
             })}
           </div>

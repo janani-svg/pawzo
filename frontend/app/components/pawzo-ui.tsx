@@ -390,8 +390,8 @@ const NAV = [
 export function BottomNav() {
   const path = usePathname();
   const { state } = usePawzo();
-  // Re-read localStorage on every navigation (path change) so badge clears
-  // immediately after the user visits the notifications page.
+  const userPhoto = state.currentUserPhoto;
+  const userInitial = (state.currentUserName?.[0] ?? "U").toUpperCase();
   const unreadCount = useMemo(() => {
     const alerts = deriveAlerts(state);
     const readIds = getReadAlertIds();
@@ -421,6 +421,7 @@ export function BottomNav() {
       {NAV.map((item) => {
         const Icon = item.icon;
         const active = path === item.href || (item.href === "/dashboard" && path === "/");
+        const isProfile = item.href === "/profile";
         return (
           <Link
             key={item.href}
@@ -443,17 +444,25 @@ export function BottomNav() {
                   width: 46,
                   height: 46,
                   borderRadius: 15,
-                  background: item.tint,
+                  background: isProfile ? (userPhoto ? "transparent" : item.tint) : item.tint,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   transition: "box-shadow 200ms, transform 150ms",
+                  overflow: "hidden",
                   boxShadow: active
                     ? `0 0 0 2.5px ${item.ink}, 0 5px 13px ${item.ink}40`
                     : "inset 0 0 0 1px rgba(0,0,0,0.04)",
                 }}
               >
-                <Icon color={item.ink} />
+                {isProfile ? (
+                  userPhoto
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={userPhoto} alt="profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span style={{ fontSize: 17, fontWeight: 800, color: item.ink }}>{userInitial}</span>
+                ) : (
+                  <Icon color={item.ink} />
+                )}
               </div>
               {item.href === "/notifications" && unreadCount > 0 && (
                 <span

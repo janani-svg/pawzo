@@ -276,15 +276,8 @@ export default function Dashboard() {
 
       {/* header — no calendar/memory buttons */}
       <header style={{ position: "relative", background: "transparent", padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Link href="/settings" aria-label="Settings" style={{ position: "absolute", left: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
         <PawzoLogo size={25} />
-        <Link href="/profile" aria-label="Profile" style={{ position: "absolute", right: 16 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.pink, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14, overflow: "hidden" }}>
-            {user?.photo
-              ? <img src={user.photo} alt="profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : (user?.name?.[0] ?? "U").toUpperCase()}
-          </div>
-        </Link>
+        <Link href="/settings" aria-label="Settings" style={{ position: "absolute", right: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
       </header>
 
       <main style={{ padding: "10px 0 0" }}>

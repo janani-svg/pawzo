@@ -2,24 +2,16 @@
 
 /* PAWZO Growth — weight logging, trend chart, AI weight analysis, milestones with confetti. */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
-import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
+import { usePawzo, useRequireAuth, todayISO } from "../../lib/store";
 import { weightAnalysisApi, type ApiWeightAnalysis } from "../../lib/api";
-
-const EMOJIS = ["🦴", "💉", "🐕", "🎂", "🏆", "🛁", "🎾", "🌱", "⭐", "❤️"];
 
 export default function GrowthPage() {
   const router = useRouter();
   const { ready, authed } = useRequireAuth();
   const { state, selectedPet, add, remove } = usePawzo();
-
-  // Milestone form
-  const [open, setOpen]   = useState(false);
-  const [emoji, setEmoji] = useState("🦴");
-  const [title, setTitle] = useState("");
-  const [date, setDate]   = useState(todayISO());
 
   // Weight form
   const [wtOpen, setWtOpen]   = useState(false);
@@ -34,10 +26,6 @@ export default function GrowthPage() {
 
   // Weight log list
   const [logsOpen, setLogsOpen] = useState(false);
-
-  // Milestone celebration
-  const [confetti, setConfetti]     = useState(false);
-  const [toast, setToast]           = useState<string | null>(null);
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -62,21 +50,9 @@ export default function GrowthPage() {
     return val; // kg
   }
 
-  const weights    = state.weights.filter((w) => w.petId === pet.id).sort((a, b) => a.date.localeCompare(b.date));
-  const milestones = state.milestones.filter((m) => m.petId === pet.id).sort((a, b) => b.date.localeCompare(a.date));
+  const weights = state.weights.filter((w) => w.petId === pet.id).sort((a, b) => a.date.localeCompare(b.date));
   const first = weights[0]?.weight, last = weights[weights.length - 1]?.weight;
   const displayDelta = first != null && last != null ? toDisplay(last) - toDisplay(first) : null;
-
-  function saveMilestone() {
-    if (!title.trim()) return;
-    add("milestones", { petId: pet!.id, emoji, title: title.trim(), date });
-    const savedTitle = title.trim();
-    const savedEmoji = emoji;
-    setTitle(""); setDate(todayISO()); setEmoji("🦴"); setOpen(false);
-    setConfetti(true);
-    setToast(`${savedEmoji} ${savedTitle}`);
-    setTimeout(() => { setConfetti(false); setToast(null); }, 3500);
-  }
 
   function saveWeight() {
     const val = Number(wWeight);
@@ -102,19 +78,6 @@ export default function GrowthPage() {
   return (
     <AppFrame>
       <TopBar title="Growth" back="/pet-profile" />
-
-      {/* Milestone toast */}
-      {toast && (
-        <div className="pawzo-rise" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 500, background: "linear-gradient(135deg,#F5A0C0,#F9D040)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.18)" }}>
-          <span style={{ fontSize: 24 }}>🎉</span>
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#7C2D12", letterSpacing: 0.9, marginBottom: 2 }}>MILESTONE UNLOCKED!</p>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#1C1917" }}>{toast}</p>
-          </div>
-        </div>
-      )}
-
-      <GrowthConfetti active={confetti} />
 
       <div style={{ padding: "8px 16px 0" }}>
 
@@ -258,96 +221,11 @@ export default function GrowthPage() {
           </>
         )}
 
-        {/* Milestones */}
-        <SectionTitle action={
-          <button onClick={() => setOpen((o) => !o)} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 4, background: T.primarySoft, border: "1px solid #FBD0E4", borderRadius: 12, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, color: T.pinkDeep, cursor: "pointer" }}>
-            <IconPlus color={T.pinkDeep} size={13} /> Add
-          </button>
-        }>Milestones</SectionTitle>
-
-        {open && (
-          <div className="pawzo-rise" style={{ background: "var(--p-surface)", borderRadius: 18, padding: 16, boxShadow: T.shadowSoft, marginBottom: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-            <div className="no-scrollbar" style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-              {EMOJIS.map((e) => (
-                <button key={e} onClick={() => setEmoji(e)} style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, border: `2px solid ${emoji === e ? T.pink : "transparent"}`, background: emoji === e ? T.primarySoft : "var(--p-surface-2)", fontSize: 20, cursor: "pointer" }}>{e}</button>
-              ))}
-            </div>
-            <input style={inputStyle} placeholder="Milestone (e.g. First swim)" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <input style={inputStyle} type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
-            <div style={{ display: "flex", gap: 10 }}>
-              <GhostButton full onClick={() => setOpen(false)}>Cancel</GhostButton>
-              <PrimaryButton full onClick={saveMilestone}>Save</PrimaryButton>
-            </div>
-          </div>
-        )}
-
-        {milestones.length === 0 && !open ? (
-          <div style={{ background: "var(--p-surface)", borderRadius: 16, padding: 20, textAlign: "center", color: T.grayLight, fontSize: 13, boxShadow: T.shadowSoft }}>
-            No milestones yet. Capture {pet.name}&apos;s big moments!
-          </div>
-        ) : (
-          <div style={{ position: "relative" }}>
-            {milestones.map((m, i) => (
-              <div key={m.id} style={{ display: "flex", gap: 12, paddingBottom: i === milestones.length - 1 ? 0 : 16, position: "relative" }}>
-                {i !== milestones.length - 1 && <div style={{ position: "absolute", left: 18, top: 38, bottom: 0, width: 2, background: "var(--p-border)" }} />}
-                <div style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: T.primarySoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, zIndex: 1 }}>{m.emoji}</div>
-                <div style={{ flex: 1, background: "var(--p-surface)", borderRadius: 14, padding: "10px 14px", boxShadow: T.shadowSoft, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>{m.title}</p>
-                    <p style={{ fontSize: 11.5, color: T.grayLight }}>{fmtDate(m.date)}</p>
-                  </div>
-                  <button onClick={() => remove("milestones", m.id)} aria-label="Delete" className="pawzo-press" style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: T.dangerBg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
       </div>
 
       <BottomNav />
     </AppFrame>
   );
-}
-
-/* ─── Confetti ────────────────────────────────────────────────────────────── */
-
-function GrowthConfetti({ active }: { active: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    if (!active) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const ctx = canvas.getContext("2d")!;
-    const COLORS = ["#F5A0C0", "#F9D040", "#A0D8F0", "#C0E8A0", "#E8A0F5", "#F5C060", "#80D8C0"];
-    type P = { x: number; y: number; vx: number; vy: number; size: number; color: string; rot: number; rotV: number };
-    const pieces: P[] = [];
-    let frame = 0, raf: number;
-    function spawn() {
-      pieces.push({ x: Math.random() * canvas!.width, y: -8, vx: (Math.random() - 0.5) * 2.5, vy: 1.5 + Math.random() * 2.5, size: 3 + Math.random() * 5, color: COLORS[Math.floor(Math.random() * COLORS.length)], rot: Math.random() * Math.PI * 2, rotV: (Math.random() - 0.5) * 0.14 });
-    }
-    function draw() {
-      ctx.clearRect(0, 0, canvas!.width, canvas!.height);
-      const rate = frame < 80 ? 2 : frame < 150 ? 3 : 6;
-      if (frame < 220 && frame % rate === 0) spawn();
-      for (let i = pieces.length - 1; i >= 0; i--) {
-        const p = pieces[i]; p.x += p.vx; p.y += p.vy; p.rot += p.rotV; p.vy += 0.035;
-        if (p.y > canvas!.height + 10) { pieces.splice(i, 1); continue; }
-        ctx.save(); ctx.globalAlpha = 0.9; ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size * 0.35, p.size, p.size * 0.7);
-        ctx.restore();
-      }
-      frame++; raf = requestAnimationFrame(draw);
-    }
-    draw();
-    return () => cancelAnimationFrame(raf);
-  }, [active]);
-  if (!active) return null;
-  return <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 499 }} />;
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
