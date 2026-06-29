@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, T, ChevronRight } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, CURRENCIES } from "../lib/store";
-import { api } from "../lib/api";
+import { userApi } from "../lib/api";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -61,7 +61,7 @@ export default function SettingsPage() {
   async function doDeleteAccount() {
     setDeleting(true);
     try {
-      await api.requestDeletion();
+      await userApi.requestDeletion();
       logout();
       router.push("/login");
     } catch {
