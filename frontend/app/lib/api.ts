@@ -204,7 +204,7 @@ export interface ApiPet {
   region: string; notes: string; created_at: string;
 }
 export interface ApiMeal {
-  id: string; pet_id: string; name: string; time: string; food: string; kcal: number;
+  id: string; pet_id: string; name: string; time: string; food: string; kcal: number; recipe?: string;
 }
 export interface ApiMealSuggestion {
   name: string; food: string; time: string; kcal: number; reason: string; recipe?: string;

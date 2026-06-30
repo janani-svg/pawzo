@@ -19,7 +19,7 @@ export type Pet = {
   gender: "male" | "female" | "unknown"; dob: string; weight: string;
   photo: string; region: string; notes: string; createdAt: number;
 };
-export type Meal        = { id: string; petId: string; name: string; time: string; food: string; kcal: number };
+export type Meal        = { id: string; petId: string; name: string; time: string; food: string; kcal: number; recipe: string };
 export type MealLog     = { id: string; petId: string; date: string; mealId: string; done: boolean; fedAt?: number };
 export type Vaccination = { id: string; petId: string; name: string; date: string; nextDue: string; clinic: string };
 export type WeightEntry = { id: string; petId: string; weight: number; date: string; note: string };
@@ -82,7 +82,7 @@ const toPet = (p: ApiPet): Pet => ({
   createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
 });
 
-const toMeal        = (m: ApiMeal):         Meal        => ({ id: m.id, petId: m.pet_id, name: m.name, time: m.time ?? "", food: m.food ?? "", kcal: m.kcal ?? 0 });
+const toMeal        = (m: ApiMeal):         Meal        => ({ id: m.id, petId: m.pet_id, name: m.name, time: m.time ?? "", food: m.food ?? "", kcal: m.kcal ?? 0, recipe: m.recipe ?? "" });
 const toMealLog     = (r: ApiMealLog):      MealLog     => ({ id: r.id, petId: r.pet_id, mealId: r.meal_id, date: r.date, done: r.done, fedAt: r.fed_at ?? undefined });
 const toVaccination = (v: ApiVaccination):  Vaccination => ({ id: v.id, petId: v.pet_id, name: v.name, date: v.date ?? "", nextDue: v.next_due ?? "", clinic: v.clinic ?? "" });
 const toWeight      = (w: ApiWeightEntry):  WeightEntry => ({ id: w.id, petId: w.pet_id, weight: w.weight, date: w.date, note: w.note ?? "" });

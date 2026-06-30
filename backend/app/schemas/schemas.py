@@ -106,6 +106,7 @@ class MealCreate(BaseModel):
     time: str = ""
     food: str = ""
     kcal: float = 0
+    recipe: str = ""
 
 
 class MealUpdate(BaseModel):
@@ -113,6 +114,7 @@ class MealUpdate(BaseModel):
     time: Optional[str] = None
     food: Optional[str] = None
     kcal: Optional[float] = None
+    recipe: Optional[str] = None
 
 
 class MealOut(BaseModel):
@@ -122,6 +124,7 @@ class MealOut(BaseModel):
     time: str
     food: str
     kcal: float
+    recipe: str = ""
 
     model_config = {"from_attributes": True}
 

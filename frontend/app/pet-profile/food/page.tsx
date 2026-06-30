@@ -34,7 +34,8 @@ export default function FoodPage() {
   const [mealSuggestions, setMealSuggestions]   = useState<ApiMealSuggestion[] | null>(null);
   const [suggestLoading, setSuggestLoading]     = useState(false);
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
-  const [recipeOpen, setRecipeOpen]             = useState<Set<number>>(new Set());
+  // recipe collapsible on Today's menu (keyed by meal id)
+  const [recipeOpen, setRecipeOpen]             = useState<Set<string>>(new Set());
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -99,8 +100,16 @@ export default function FoodPage() {
   }
 
   function addSuggestionToPlanner(s: ApiMealSuggestion, idx: number) {
-    add("meals", { petId: pet!.id, name: s.name, time: s.time, food: s.food, kcal: s.kcal });
+    add("meals", { petId: pet!.id, name: s.name, time: s.time, food: s.food, kcal: s.kcal, recipe: s.recipe ?? "" });
     setAddedSuggestions((prev) => new Set(prev).add(idx));
+  }
+
+  function toggleMealRecipe(mealId: string) {
+    setRecipeOpen((prev) => {
+      const next = new Set(prev);
+      next.has(mealId) ? next.delete(mealId) : next.add(mealId);
+      return next;
+    });
   }
 
   return (
@@ -185,22 +194,39 @@ export default function FoodPage() {
             {meals.map((m) => {
               const done = !!state.mealLogs.find((l) => l.petId === pet.id && l.mealId === m.id && l.date === today)?.done;
               return (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--p-surface)", borderRadius: 16, padding: "12px 14px", boxShadow: T.shadowSoft }}>
-                  <button onClick={() => toggleMealLog(pet.id, m.id, today)} style={{ width: 26, height: 26, borderRadius: 9, border: `2px solid ${done ? T.success : "#cdbfdd"}`, background: done ? T.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }} aria-label="Mark fed">
-                    {done && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
-                  </button>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14.5, fontWeight: 800, color: done ? T.grayLight : T.ink, textDecoration: done ? "line-through" : "none" }}>{m.name}</span>
-                      {m.time && <span style={{ fontSize: 11, color: T.grayLight }}>{m.time}</span>}
+                <div key={m.id} style={{ background: "var(--p-surface)", borderRadius: 16, padding: "12px 14px", boxShadow: T.shadowSoft }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <button onClick={() => toggleMealLog(pet.id, m.id, today)} style={{ width: 26, height: 26, borderRadius: 9, border: `2px solid ${done ? T.success : "#cdbfdd"}`, background: done ? T.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }} aria-label="Mark fed">
+                      {done && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14.5, fontWeight: 800, color: done ? T.grayLight : T.ink, textDecoration: done ? "line-through" : "none" }}>{m.name}</span>
+                        {m.time && <span style={{ fontSize: 11, color: T.grayLight }}>{m.time}</span>}
+                      </div>
+                      {m.food && <div style={{ fontSize: 12, color: T.gray, marginTop: 2 }}>{m.food}</div>}
                     </div>
-                    {m.food && <div style={{ fontSize: 12, color: T.gray, marginTop: 2 }}>{m.food}</div>}
+                    {m.kcal > 0 && <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>{m.kcal} kcal</span>}
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <IconAction label="Edit" onClick={() => { setForm({ id: m.id, name: m.name, time: m.time, food: m.food, kcal: String(m.kcal), ingredients: "" }); setFoodEval(null); }} />
+                      <IconAction label="Delete" danger onClick={() => remove("meals", m.id)} />
+                    </div>
                   </div>
-                  {m.kcal > 0 && <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>{m.kcal} kcal</span>}
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <IconAction label="Edit" onClick={() => { setForm({ id: m.id, name: m.name, time: m.time, food: m.food, kcal: String(m.kcal), ingredients: "" }); setFoodEval(null); }} />
-                    <IconAction label="Delete" danger onClick={() => remove("meals", m.id)} />
-                  </div>
+                  {m.recipe && (
+                    <div style={{ marginTop: 8, paddingLeft: 38 }}>
+                      <button onClick={() => toggleMealRecipe(m.id)} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 4, background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: T.pink }}>How to prepare</span>
+                        <span style={{ fontSize: 10, color: T.pink }}>{recipeOpen.has(m.id) ? "▲" : "▼"}</span>
+                      </button>
+                      {recipeOpen.has(m.id) && (
+                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                          {m.recipe.split("\n").filter(Boolean).map((step, si) => (
+                            <p key={si} style={{ fontSize: 12, color: T.gray, margin: 0, lineHeight: 1.5 }}>{step}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -280,16 +306,6 @@ export default function FoodPage() {
               ];
               const card  = CARDS[i] ?? CARDS[2];
               const added = addedSuggestions.has(i);
-              const open  = recipeOpen.has(i);
-              const recipeSteps = s.recipe ? s.recipe.split("\n").filter(Boolean) : [];
-
-              function toggleRecipe() {
-                setRecipeOpen((prev) => {
-                  const next = new Set(prev);
-                  next.has(i) ? next.delete(i) : next.add(i);
-                  return next;
-                });
-              }
 
               return (
                 <div key={i} style={{ background: card.bg, border: `1.5px solid ${added ? "#BBF7D0" : card.border}`, borderRadius: 16, padding: 14 }}>
@@ -312,25 +328,6 @@ export default function FoodPage() {
                   {/* Reason */}
                   <p style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic", margin: "0 0 10px", lineHeight: 1.5 }}>{s.reason}</p>
 
-                  {/* Collapsible recipe — always present */}
-                  {recipeSteps.length > 0 && (
-                    <div style={{ marginBottom: 10 }}>
-                      <button onClick={toggleRecipe} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: "none", padding: 0, cursor: "pointer", marginBottom: open ? 8 : 0 }}>
-                        <span style={{ fontSize: 11.5, fontWeight: 700, color: card.titleColor }}>How to prepare</span>
-                        <span style={{ fontSize: 10, color: card.titleColor }}>{open ? "▲" : "▼"}</span>
-                      </button>
-                      {open && (
-                        <div style={{ background: "var(--p-surface-2)", borderRadius: 10, padding: "10px 12px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {recipeSteps.map((step, si) => (
-                              <p key={si} style={{ fontSize: 12, color: "#4B5563", margin: 0, lineHeight: 1.5 }}>{step}</p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Add / added state */}
                   {added ? (
                     <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 700, background: "#F0FDF4", color: "#166534", border: "1px solid #BBF7D0", borderRadius: 20, padding: "3px 10px" }}>✓ Added to schedule</span>
@@ -342,7 +339,7 @@ export default function FoodPage() {
                 </div>
               );
             })}
-            <button onClick={() => { setAddedSuggestions(new Set()); setRecipeOpen(new Set()); fetchMealSuggestions(); }} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
+            <button onClick={() => { setAddedSuggestions(new Set()); fetchMealSuggestions(); }} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
               🔄 Regenerate
             </button>
             <AiDisclaimer />

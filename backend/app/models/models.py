@@ -75,6 +75,7 @@ class Meal(Base):
     time   = Column(String, default="")
     food   = Column(String, default="")
     kcal   = Column(Float, default=0)
+    recipe = Column(Text, default="")
 
     pet      = relationship("Pet", back_populates="meals")
     meal_logs = relationship("MealLog", back_populates="meal", cascade="all, delete-orphan")
