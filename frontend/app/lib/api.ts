@@ -207,7 +207,7 @@ export interface ApiMeal {
   id: string; pet_id: string; name: string; time: string; food: string; kcal: number;
 }
 export interface ApiMealSuggestion {
-  name: string; food: string; time: string; kcal: number; reason: string;
+  name: string; food: string; time: string; kcal: number; reason: string; recipe?: string;
 }
 export interface ApiMealLog {
   id: string; pet_id: string; meal_id: string; date: string; done: boolean;

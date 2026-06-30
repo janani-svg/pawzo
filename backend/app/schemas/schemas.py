@@ -446,6 +446,7 @@ class MealSuggestionItem(BaseModel):
     time: str
     kcal: int
     reason: str
+    recipe: str = ""  # newline-separated preparation steps
 
 
 class MealSuggestionsOut(BaseModel):

@@ -33,6 +33,7 @@ export default function FoodPage() {
   // AI meal suggestions
   const [mealSuggestions, setMealSuggestions]   = useState<ApiMealSuggestion[] | null>(null);
   const [suggestLoading, setSuggestLoading]     = useState(false);
+  const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -96,8 +97,9 @@ export default function FoodPage() {
     }
   }
 
-  function addSuggestionToPlanner(s: ApiMealSuggestion) {
+  function addSuggestionToPlanner(s: ApiMealSuggestion, idx: number) {
     add("meals", { petId: pet!.id, name: s.name, time: s.time, food: s.food, kcal: s.kcal });
+    setAddedSuggestions((prev) => new Set(prev).add(idx));
   }
 
   return (
@@ -270,8 +272,10 @@ export default function FoodPage() {
             {mealSuggestions.map((s, i) => {
               const cardBgs     = ["#FEFCE8", "#F0FDF4", "var(--p-surface)"];
               const cardBorders = ["#FDE68A", "#BBF7D0", "var(--p-border)"];
+              const added = addedSuggestions.has(i);
+              const recipeSteps = s.recipe ? s.recipe.split("\n").filter(Boolean) : [];
               return (
-                <div key={i} style={{ background: cardBgs[i] ?? "var(--p-surface)", border: `1.5px solid ${cardBorders[i] ?? "var(--p-border)"}`, borderRadius: 16, padding: 14 }}>
+                <div key={i} style={{ background: cardBgs[i] ?? "var(--p-surface)", border: `1.5px solid ${added ? "#BBF7D0" : (cardBorders[i] ?? "var(--p-border)")}`, borderRadius: 16, padding: 14 }}>
                   {/* Meal name + time pill */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <p style={{ fontSize: 14, fontWeight: 800, color: T.ink, margin: 0 }}>{s.name}</p>
@@ -287,15 +291,35 @@ export default function FoodPage() {
                   {s.kcal > 0 && (
                     <p style={{ fontSize: 11.5, fontWeight: 700, color: T.orange, margin: "0 0 4px" }}>{s.kcal} kcal</p>
                   )}
-                  {/* Reason */}
-                  <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", margin: "0 0 10px" }}>{s.reason}</p>
-                  <button onClick={() => addSuggestionToPlanner(s)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
-                    + Add to schedule
-                  </button>
+
+                  {added ? (
+                    /* Collapsed — added badge only */
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, background: "#F0FDF4", color: "#166534", border: "1px solid #BBF7D0", borderRadius: 20, padding: "3px 10px" }}>✓ Added to schedule</span>
+                    </div>
+                  ) : (
+                    /* Full card — show reason, recipe, and add button */
+                    <>
+                      <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", margin: "0 0 10px" }}>{s.reason}</p>
+                      {recipeSteps.length > 0 && (
+                        <div style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                          <p style={{ fontSize: 11, fontWeight: 800, color: T.ink, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>How to prepare</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            {recipeSteps.map((step, si) => (
+                              <p key={si} style={{ fontSize: 12, color: T.gray, margin: 0, lineHeight: 1.5 }}>{step}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button onClick={() => addSuggestionToPlanner(s, i)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
+                        + Add to schedule
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
-            <button onClick={fetchMealSuggestions} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
+            <button onClick={() => { setAddedSuggestions(new Set()); fetchMealSuggestions(); }} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
               🔄 Regenerate
             </button>
             <AiDisclaimer />

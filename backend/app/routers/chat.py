@@ -157,30 +157,30 @@ def _fallback_reply(text: str, pet: Optional[Pet]) -> str:
 
 _MEAL_FALLBACK: dict[str, list[dict]] = {
     "Dog": [
-        {"name": "Morning Bowl",    "food": "Dry kibble with warm water",    "time": "08:00", "kcal": 300, "reason": "Complete balanced nutrition to start the day."},
-        {"name": "Midday Snack",    "food": "Boiled chicken & carrot sticks","time": "13:00", "kcal": 100, "reason": "Lean protein keeps energy steady between meals."},
-        {"name": "Evening Dinner",  "food": "Wet food with rice & veggies",  "time": "18:30", "kcal": 350, "reason": "High-moisture meal aids digestion overnight."},
+        {"name": "Morning Bowl",   "food": "Dry kibble with warm water",     "time": "08:00", "kcal": 300, "reason": "Complete balanced nutrition to start the day.",          "recipe": "1. Measure portion per weight guide.\n2. Add warm water, stir gently.\n3. Let cool 2 min before serving."},
+        {"name": "Midday Snack",   "food": "Boiled chicken & carrot sticks", "time": "13:00", "kcal": 100, "reason": "Lean protein keeps energy steady between meals.",         "recipe": "1. Boil chicken breast 15 min, no salt.\n2. Slice into small pieces.\n3. Add raw carrot sticks alongside."},
+        {"name": "Evening Dinner", "food": "Wet food with rice & veggies",   "time": "18:30", "kcal": 350, "reason": "High-moisture meal aids digestion overnight.",            "recipe": "1. Cook plain rice until soft.\n2. Mix wet food with rice 2:1 ratio.\n3. Add steamed veggies, cool before serving."},
     ],
     "Cat": [
-        {"name": "Morning Feed",    "food": "Wet cat food with tuna",        "time": "08:00", "kcal": 180, "reason": "Cats need high animal protein; wet food boosts hydration."},
-        {"name": "Afternoon Bite",  "food": "Dry kibble (measured portion)",  "time": "14:00", "kcal": 120, "reason": "Crunchy kibble supports dental health."},
-        {"name": "Evening Meal",    "food": "Wet food with chicken & gravy", "time": "19:00", "kcal": 180, "reason": "Aromatic wet meal appeals to picky eaters at night."},
+        {"name": "Morning Feed",   "food": "Wet cat food with tuna",         "time": "08:00", "kcal": 180, "reason": "Cats need high animal protein; wet food boosts hydration.", "recipe": "1. Open wet food pouch, place in bowl.\n2. Add a few flakes of plain tuna on top.\n3. Serve at room temperature."},
+        {"name": "Afternoon Bite", "food": "Dry kibble (measured portion)",   "time": "14:00", "kcal": 120, "reason": "Crunchy kibble supports dental health.",                  "recipe": "1. Measure portion per weight chart.\n2. Place in clean dry bowl.\n3. Ensure fresh water is available alongside."},
+        {"name": "Evening Meal",   "food": "Wet food with chicken & gravy",  "time": "19:00", "kcal": 180, "reason": "Aromatic wet meal appeals to picky eaters at night.",      "recipe": "1. Warm pouch in warm water 2 min.\n2. Mix in a small spoon of plain chicken.\n3. Serve immediately while aromatic."},
     ],
     "Bird": [
-        {"name": "Breakfast Seeds", "food": "Mixed seed & millet spray",     "time": "07:30", "kcal": 60,  "reason": "Seeds provide essential fatty acids for feather health."},
-        {"name": "Lunch Veggies",   "food": "Chopped leafy greens & carrot", "time": "12:00", "kcal": 30,  "reason": "Fresh vegetables supply vitamins A and K."},
-        {"name": "Evening Pellets", "food": "Fortified pelleted diet",        "time": "17:00", "kcal": 70,  "reason": "Pellets ensure complete mineral intake."},
+        {"name": "Breakfast Seeds", "food": "Mixed seed & millet spray",     "time": "07:30", "kcal": 60,  "reason": "Seeds provide essential fatty acids for feather health.", "recipe": "1. Fill seed dish ¾ full with fresh mix.\n2. Clip millet spray to cage bars.\n3. Remove uneaten fresh food after 2 hrs."},
+        {"name": "Lunch Veggies",   "food": "Chopped leafy greens & carrot", "time": "12:00", "kcal": 30,  "reason": "Fresh vegetables supply vitamins A and K.",               "recipe": "1. Wash greens and carrot thoroughly.\n2. Chop into small beak-sized pieces.\n3. Place in a clean dish, discard after 3 hrs."},
+        {"name": "Evening Pellets", "food": "Fortified pelleted diet",        "time": "17:00", "kcal": 70,  "reason": "Pellets ensure complete mineral intake.",                  "recipe": "1. Measure pellets per species weight guide.\n2. Offer in a separate dish from seeds.\n3. Transition gradually if new to pellets."},
     ],
     "Rabbit": [
-        {"name": "Morning Hay",     "food": "Unlimited timothy hay",         "time": "08:00", "kcal": 50,  "reason": "Hay must be 70% of diet for healthy gut motility."},
-        {"name": "Midday Greens",   "food": "Romaine, parsley & herbs",      "time": "12:00", "kcal": 20,  "reason": "Leafy greens provide moisture and vitamins."},
-        {"name": "Evening Pellets", "food": "Plain rabbit pellets (50g)",    "time": "18:00", "kcal": 130, "reason": "Measured pellets prevent obesity in house rabbits."},
+        {"name": "Morning Hay",     "food": "Unlimited timothy hay",         "time": "08:00", "kcal": 50,  "reason": "Hay must be 70% of diet for healthy gut motility.",       "recipe": "1. Fill hay rack generously with fresh hay.\n2. Remove old damp hay daily.\n3. Provide unlimited access throughout the day."},
+        {"name": "Midday Greens",   "food": "Romaine, parsley & herbs",      "time": "12:00", "kcal": 20,  "reason": "Leafy greens provide moisture and vitamins.",              "recipe": "1. Rinse greens under cold water.\n2. Shake dry and tear into pieces.\n3. Offer a loosely packed cup per kg body weight."},
+        {"name": "Evening Pellets", "food": "Plain rabbit pellets (50g)",    "time": "18:00", "kcal": 130, "reason": "Measured pellets prevent obesity in house rabbits.",        "recipe": "1. Measure exactly 50g on a kitchen scale.\n2. Place in a heavy ceramic bowl.\n3. Remove uneaten pellets after 1 hour."},
     ],
 }
 _MEAL_FALLBACK_DEFAULT = [
-    {"name": "Morning Feed",   "food": "Species-appropriate staple food", "time": "08:00", "kcal": 200, "reason": "Consistent morning feeding builds routine."},
-    {"name": "Midday Snack",   "food": "Fresh vegetables or fruit",       "time": "13:00", "kcal": 80,  "reason": "Natural treats add enrichment and nutrients."},
-    {"name": "Evening Meal",   "food": "Protein-rich evening portion",    "time": "18:30", "kcal": 220, "reason": "Larger evening meal supports overnight energy needs."},
+    {"name": "Morning Feed",   "food": "Species-appropriate staple food", "time": "08:00", "kcal": 200, "reason": "Consistent morning feeding builds routine.",              "recipe": "1. Prepare species-appropriate food per label guide.\n2. Serve in a clean bowl at regular time.\n3. Remove uneaten food after 30 min."},
+    {"name": "Midday Snack",   "food": "Fresh vegetables or fruit",       "time": "13:00", "kcal": 80,  "reason": "Natural treats add enrichment and nutrients.",            "recipe": "1. Wash fresh produce thoroughly.\n2. Chop into appropriate-sized pieces.\n3. Offer as a small snack between main meals."},
+    {"name": "Evening Meal",   "food": "Protein-rich evening portion",    "time": "18:30", "kcal": 220, "reason": "Larger evening meal supports overnight energy needs.",     "recipe": "1. Prepare protein source appropriate for species.\n2. Combine with any safe carbohydrates or greens.\n3. Let cool and serve in a clean bowl."},
 ]
 
 
@@ -210,7 +210,8 @@ async def suggest_meals(
                 f"Return a JSON object with a 'suggestions' array of exactly 3 items. "
                 f"Each item must have: name (2-4 words), food (specific ingredients, max 8 words), "
                 f"time (HH:MM 24h), kcal (realistic integer for a {pet.species}), "
-                f"reason (one sentence explaining why this suits a {pet.species} in {region})."
+                f"reason (one sentence explaining why this suits a {pet.species} in {region}), "
+                f"recipe (exactly 3 concise preparation steps separated by newlines, e.g. '1. Step one.\\n2. Step two.\\n3. Step three.', max 30 words total)."
             )
             response = await client.chat.completions.create(
                 model="gpt-4o",
@@ -219,7 +220,7 @@ async def suggest_meals(
                     {"role": "user", "content": prompt},
                 ],
                 response_format={"type": "json_object"},
-                max_tokens=600,
+                max_tokens=900,
                 temperature=0.8,
             )
             raw = response.choices[0].message.content.strip()
