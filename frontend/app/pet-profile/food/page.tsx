@@ -66,7 +66,7 @@ export default function FoodPage() {
 
   function saveMeal() {
     if (!form || !form.name.trim()) return;
-    const payload = { petId: pet!.id, name: form.name.trim(), time: form.time.trim(), food: form.food.trim(), kcal: Number(form.kcal) || 0 };
+    const payload = { petId: pet!.id, name: form.name.trim(), time: form.time.trim(), food: form.food.trim(), kcal: Number(form.kcal) || 0, recipe: "" };
     if (form.id) update("meals", form.id, payload);
     else add("meals", payload);
     setForm(null);
