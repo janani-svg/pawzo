@@ -4,8 +4,8 @@
    vet consultations / medications. Only user-entered records are shown — no
    default vaccines or sample weights. */
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, Pill, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil } from "../../lib/store";
 import type { Meal, MealLog } from "../../lib/store";
@@ -14,8 +14,15 @@ type Form = null | { kind: "vaccine" | "vet" | "medication" };
 
 export default function HealthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();
-  const { state, selectedPet, add, remove } = usePawzo();
+  const { state, selectedPet, add, remove, selectPet } = usePawzo();
+
+  useEffect(() => {
+    const petId = searchParams.get("petId");
+    if (petId && ready) selectPet(petId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
   const [form, setForm] = useState<Form>(null);
 
   const pet = ready ? selectedPet() : null;

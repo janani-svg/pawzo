@@ -80,7 +80,7 @@ async def check_meal_reminders():
         )
         for meal, pet, sub in result.all():
             t, b = _pick(MEAL_MSGS, pet=pet.name, meal=meal.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, "/dashboard")
+            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
             if not ok:
                 await _delete_stale(db, sub)
 
@@ -99,7 +99,7 @@ async def check_daily_alerts():
         )
         for vacc, pet, sub in vacc_rows.all():
             t, b = _pick(VACC_MSGS, pet=pet.name, vacc=vacc.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, "/pet-profile/health")
+            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/health?petId={pet.id}")
             if not ok:
                 await _delete_stale(db, sub)
 
@@ -111,7 +111,7 @@ async def check_daily_alerts():
         )
         for pet, sub in (await db.execute(no_meal_sub)).all():
             t, b = _pick(NO_MEAL_MSGS, pet=pet.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, "/food")
+            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
             if not ok:
                 await _delete_stale(db, sub)
 
@@ -142,7 +142,7 @@ async def check_evening_unfed():
                 continue
             seen.add(sub.endpoint)
             t, b = _pick(EVENING_MSGS, pet=pet.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, "/dashboard")
+            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
             if not ok:
                 await _delete_stale(db, sub)
 

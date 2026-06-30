@@ -99,12 +99,16 @@ self.addEventListener("notificationclick", (event) => {
     );
   } else {
     const targetUrl = event.notification.data?.url || "/dashboard";
+    const fullUrl = self.location.origin + targetUrl;
     event.waitUntil(
       clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
         for (const c of list) {
-          if (c.url.includes(self.location.origin)) return c.focus();
+          if (c.url.includes(self.location.origin)) {
+            c.postMessage({ type: "NAVIGATE", url: targetUrl });
+            return c.focus();
+          }
         }
-        return clients.openWindow(targetUrl);
+        return clients.openWindow(fullUrl);
       }),
     );
   }

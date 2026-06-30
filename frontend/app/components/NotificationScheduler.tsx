@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePawzo } from "../lib/store";
 import { scheduleNotifications, checkMissedYesterday } from "../lib/notif-scheduler";
 import { subscribeToPush } from "../lib/push";
@@ -9,6 +10,7 @@ export default function NotificationScheduler() {
   const { state } = usePawzo();
   const stateRef = useRef(state);
   stateRef.current = state;
+  const router = useRouter();
 
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -74,6 +76,18 @@ export default function NotificationScheduler() {
     navigator.serviceWorker.addEventListener("message", handler);
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, []);
+
+  // Handle deep-link navigation from notification click
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const navHandler = (event: MessageEvent) => {
+      if (event.data?.type !== "NAVIGATE") return;
+      const url: string = event.data.url ?? "/dashboard";
+      router.push(url);
+    };
+    navigator.serviceWorker.addEventListener("message", navHandler);
+    return () => navigator.serviceWorker.removeEventListener("message", navHandler);
+  }, [router]);
 
   // Check for missed meals from yesterday — fires once when pets first load
   useEffect(() => {

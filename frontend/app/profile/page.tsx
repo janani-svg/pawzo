@@ -65,9 +65,10 @@ const MEM_META: Record<number,{ emoji:string; name:string; desc:string }> = {
   100: { emoji:"🌟", name:"100 Memories",  desc:"The ultimate memory keeper" },
 };
 
-function badgeState(value: number, milestone: number, prevMilestone: number, justEarnedMilestone: number | null): BadgeState {
-  if (value >= milestone) return milestone === justEarnedMilestone ? "just_earned" : "earned";
-  if (value >= prevMilestone) return "next";
+function badgeState(value: number, milestone: number, prevMilestone: number, justEarnedMilestone: number | null, earnedSet?: Set<number>): BadgeState {
+  const isEarned = value >= milestone || earnedSet?.has(milestone);
+  if (isEarned) return milestone === justEarnedMilestone ? "just_earned" : "earned";
+  if (value >= prevMilestone || (earnedSet && prevMilestone > 0 && earnedSet.has(prevMilestone))) return "next";
   return "locked";
 }
 
@@ -80,6 +81,7 @@ export default function ProfilePage() {
   const [docDeleteConfirm, setDocDeleteConfirm] = useState(false);
   const [docRenameId, setDocRenameId] = useState<string | null>(null);
   const [docRenameName, setDocRenameName] = useState("");
+  const [earnedStreakSet, setEarnedStreakSet] = useState<Set<number>>(new Set());
   const [justEarnedStreak, setJustEarnedStreak] = useState<number | null>(null);
   const [justEarnedMem, setJustEarnedMem] = useState<number | null>(null);
   const [justEarnedPet, setJustEarnedPet] = useState<number | null>(null);
@@ -99,6 +101,9 @@ export default function ProfilePage() {
     const prevStreak = parseInt(localStorage.getItem("pawzo_cel_streak") ?? "0", 10);
     const prevMem    = parseInt(localStorage.getItem("pawzo_cel_mem")    ?? "0", 10);
     const prevPets   = parseInt(localStorage.getItem("pawzo_cel_pets")   ?? "0", 10);
+
+    const persistedStreak = new Set<number>(JSON.parse(localStorage.getItem("pawzo_earned_streak_ms") ?? "[]"));
+    setEarnedStreakSet(persistedStreak);
 
     const crossedStreak = getStreakMilestones(currentStreak).filter(m => prevStreak < m && currentStreak >= m);
     const crossedMem    = MEM_MILESTONES.filter(m => prevMem < m && currentMemCount >= m);
@@ -366,7 +371,7 @@ export default function ProfilePage() {
           <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:4 }}>
             {STREAK_MILESTONES.map((m, i) => {
               const prev = i > 0 ? STREAK_MILESTONES[i-1] : 0;
-              const st = badgeState(currentStreak, m, prev, justEarnedStreak);
+              const st = badgeState(currentStreak, m, prev, justEarnedStreak, earnedStreakSet);
               const meta = streakMeta(m);
               const hint = st === "next" ? `${m - currentStreak}d left` : undefined;
               return <Badge key={m} emoji={meta.emoji} name={meta.name} desc={meta.desc} state={st} hint={hint} />;

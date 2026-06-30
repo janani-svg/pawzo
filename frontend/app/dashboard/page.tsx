@@ -104,6 +104,13 @@ export default function Dashboard() {
     localStorage.setItem("pawzo_cel_streak", String(currentStreak));
     localStorage.setItem("pawzo_cel_mem",    String(currentMemCount));
     localStorage.setItem("pawzo_cel_pets",   String(currentPets.length));
+
+    // Persist earned streak milestones so badges survive streak resets
+    if (crossedStreak.length) {
+      const prev = JSON.parse(localStorage.getItem("pawzo_earned_streak_ms") ?? "[]") as number[];
+      const merged = Array.from(new Set([...prev, ...crossedStreak]));
+      localStorage.setItem("pawzo_earned_streak_ms", JSON.stringify(merged));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 

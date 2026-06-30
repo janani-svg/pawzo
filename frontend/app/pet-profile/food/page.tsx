@@ -3,8 +3,8 @@
 /* PAWZO Food & Feeding — user-defined meals, ingredient AI eval,
    and AI nutrition plan with household-measure recipes. */
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
 import { foodEvalApi, nutritionRecsApi, type ApiFoodEval, type ApiNutritionRec } from "../../lib/api";
@@ -14,8 +14,15 @@ const EMPTY: Draft = { name: "", time: "", food: "", kcal: "", ingredients: "" }
 
 export default function FoodPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();
-  const { state, selectedPet, add, update, remove, toggleMealLog } = usePawzo();
+  const { state, selectedPet, add, update, remove, toggleMealLog, selectPet } = usePawzo();
+
+  useEffect(() => {
+    const petId = searchParams.get("petId");
+    if (petId && ready) selectPet(petId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
   const [form, setForm]               = useState<Draft | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
