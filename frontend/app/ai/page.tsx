@@ -150,7 +150,7 @@ function AIContent() {
 
   function saveMeal() {
     if (!mealName.trim() || !pet) return;
-    add("meals", { petId: pet.id, name: mealName.trim(), time: mealTime, food: "", kcal: 0 });
+    add("meals", { petId: pet.id, name: mealName.trim(), time: mealTime, food: "", kcal: 0, recipe: "" });
     setMealSaved(true);
     setShowMealForm(false);
     setTimeout(() => setMealSaved(false), 3000);
