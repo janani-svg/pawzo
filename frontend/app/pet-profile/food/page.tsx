@@ -34,6 +34,7 @@ export default function FoodPage() {
   const [mealSuggestions, setMealSuggestions]   = useState<ApiMealSuggestion[] | null>(null);
   const [suggestLoading, setSuggestLoading]     = useState(false);
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
+  const [recipeOpen, setRecipeOpen]             = useState<Set<number>>(new Set());
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -270,56 +271,78 @@ export default function FoodPage() {
         {mealSuggestions && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {mealSuggestions.map((s, i) => {
-              const cardBgs     = ["#FEFCE8", "#F0FDF4", "var(--p-surface)"];
-              const cardBorders = ["#FDE68A", "#BBF7D0", "var(--p-border)"];
+              // Each card gets a tinted bg + a matching dark title color that
+              // stays readable on that bg regardless of the app's dark/light mode.
+              const CARDS = [
+                { bg: "#FEFCE8", border: "#FDE68A", titleColor: "#78350F" },
+                { bg: "#F0FDF4", border: "#BBF7D0", titleColor: "#14532D" },
+                { bg: "var(--p-surface)", border: "var(--p-border)", titleColor: "var(--p-ink)" },
+              ];
+              const card  = CARDS[i] ?? CARDS[2];
               const added = addedSuggestions.has(i);
+              const open  = recipeOpen.has(i);
               const recipeSteps = s.recipe ? s.recipe.split("\n").filter(Boolean) : [];
+
+              function toggleRecipe() {
+                setRecipeOpen((prev) => {
+                  const next = new Set(prev);
+                  next.has(i) ? next.delete(i) : next.add(i);
+                  return next;
+                });
+              }
+
               return (
-                <div key={i} style={{ background: cardBgs[i] ?? "var(--p-surface)", border: `1.5px solid ${added ? "#BBF7D0" : (cardBorders[i] ?? "var(--p-border)")}`, borderRadius: 16, padding: 14 }}>
+                <div key={i} style={{ background: card.bg, border: `1.5px solid ${added ? "#BBF7D0" : card.border}`, borderRadius: 16, padding: 14 }}>
                   {/* Meal name + time pill */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <p style={{ fontSize: 14, fontWeight: 800, color: T.ink, margin: 0 }}>{s.name}</p>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: card.titleColor, margin: 0 }}>{s.name}</p>
                     {s.time && (
                       <span style={{ fontSize: 12, fontWeight: 700, background: T.primarySoft, color: T.pinkDeep, border: `1px solid #FBD0E4`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
                         🕐 {s.time}
                       </span>
                     )}
                   </div>
-                  {/* Food description */}
-                  <p style={{ fontSize: 12.5, color: T.gray, lineHeight: 1.5, margin: "0 0 4px" }}>{s.food}</p>
-                  {/* kcal */}
+
+                  {/* Food + kcal */}
+                  <p style={{ fontSize: 12.5, color: "#6B7280", lineHeight: 1.5, margin: "0 0 2px" }}>{s.food}</p>
                   {s.kcal > 0 && (
-                    <p style={{ fontSize: 11.5, fontWeight: 700, color: T.orange, margin: "0 0 4px" }}>{s.kcal} kcal</p>
+                    <p style={{ fontSize: 11.5, fontWeight: 700, color: T.orange, margin: "0 0 6px" }}>{s.kcal} kcal</p>
                   )}
 
-                  {added ? (
-                    /* Collapsed — added badge only */
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, background: "#F0FDF4", color: "#166534", border: "1px solid #BBF7D0", borderRadius: 20, padding: "3px 10px" }}>✓ Added to schedule</span>
-                    </div>
-                  ) : (
-                    /* Full card — show reason, recipe, and add button */
-                    <>
-                      <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", margin: "0 0 10px" }}>{s.reason}</p>
-                      {recipeSteps.length > 0 && (
-                        <div style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
-                          <p style={{ fontSize: 11, fontWeight: 800, color: T.ink, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.04em" }}>How to prepare</p>
+                  {/* Reason */}
+                  <p style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic", margin: "0 0 10px", lineHeight: 1.5 }}>{s.reason}</p>
+
+                  {/* Collapsible recipe — always present */}
+                  {recipeSteps.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <button onClick={toggleRecipe} className="pawzo-press" style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: "none", padding: 0, cursor: "pointer", marginBottom: open ? 8 : 0 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: card.titleColor }}>How to prepare</span>
+                        <span style={{ fontSize: 10, color: card.titleColor }}>{open ? "▲" : "▼"}</span>
+                      </button>
+                      {open && (
+                        <div style={{ background: "var(--p-surface-2)", borderRadius: 10, padding: "10px 12px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                             {recipeSteps.map((step, si) => (
-                              <p key={si} style={{ fontSize: 12, color: T.gray, margin: 0, lineHeight: 1.5 }}>{step}</p>
+                              <p key={si} style={{ fontSize: 12, color: "#4B5563", margin: 0, lineHeight: 1.5 }}>{step}</p>
                             ))}
                           </div>
                         </div>
                       )}
-                      <button onClick={() => addSuggestionToPlanner(s, i)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
-                        + Add to schedule
-                      </button>
-                    </>
+                    </div>
+                  )}
+
+                  {/* Add / added state */}
+                  {added ? (
+                    <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 700, background: "#F0FDF4", color: "#166534", border: "1px solid #BBF7D0", borderRadius: 20, padding: "3px 10px" }}>✓ Added to schedule</span>
+                  ) : (
+                    <button onClick={() => addSuggestionToPlanner(s, i)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
+                      + Add to schedule
+                    </button>
                   )}
                 </div>
               );
             })}
-            <button onClick={() => { setAddedSuggestions(new Set()); fetchMealSuggestions(); }} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
+            <button onClick={() => { setAddedSuggestions(new Set()); setRecipeOpen(new Set()); fetchMealSuggestions(); }} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
               🔄 Regenerate
             </button>
             <AiDisclaimer />
