@@ -82,7 +82,7 @@ export default function ProfilePage() {
   const [docRenameName, setDocRenameName] = useState("");
   const [justEarnedStreak, setJustEarnedStreak] = useState<number | null>(null);
   const [justEarnedMem, setJustEarnedMem] = useState<number | null>(null);
-  const [justEarnedPet, setJustEarnedPet] = useState(false);
+  const [justEarnedPet, setJustEarnedPet] = useState<number | null>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +104,8 @@ export default function ProfilePage() {
     const crossedMem    = MEM_MILESTONES.filter(m => prevMem < m && currentMemCount >= m);
     if (crossedStreak.length) setJustEarnedStreak(Math.max(...crossedStreak));
     if (crossedMem.length)    setJustEarnedMem(Math.max(...crossedMem));
-    if (currentPets.length >= 1 && prevPets < 1) setJustEarnedPet(true);
+    const crossedPets = [1,2,3,4,5].filter(m => prevPets < m && currentPets.length >= m);
+    if (crossedPets.length) setJustEarnedPet(Math.max(...crossedPets));
     // no localStorage writes here
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
@@ -187,7 +188,7 @@ export default function ProfilePage() {
   const nextMemMs = memMilestoneIdx >= 0 ? MEM_MILESTONES[memMilestoneIdx] : MEM_MILESTONES[MEM_MILESTONES.length-1];
   const memBarPct = memMilestoneIdx < 0 ? 100 : Math.min(100, ((memCount - prevMemMs) / (nextMemMs - prevMemMs)) * 100);
 
-  const totalEarned = doneStreakCount + (pets.length >= 1 ? 1 : 0) + (pets.length >= 3 ? 1 : 0) + MEM_MILESTONES.filter(m => memCount >= m).length;
+  const totalEarned = doneStreakCount + [1,2,3,4,5].filter(m => pets.length >= m).length + MEM_MILESTONES.filter(m => memCount >= m).length;
 
   return (
     <AppFrame>
@@ -377,8 +378,18 @@ export default function ProfilePage() {
           {/* pets section */}
           <SubLabel>🐾 Pets</SubLabel>
           <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:4 }}>
-            <Badge emoji="🏆" name="First Pet" desc="You started your Pawzo journey!" state={pets.length >= 1 ? (justEarnedPet ? "just_earned" : "earned") : "next"} />
-            <Badge emoji="🐶" name="Pet Family" desc="Added 3 pets" state={pets.length >= 3 ? "earned" : pets.length >= 1 ? "next" : "locked"} hint={pets.length < 3 ? `${3 - pets.length} more` : undefined} />
+            {([
+              { n:1, emoji:"🏆", name:"First Pet" },
+              { n:2, emoji:"🐾", name:"2 Pets" },
+              { n:3, emoji:"🐶", name:"Pet Family" },
+              { n:4, emoji:"🌟", name:"4 Pets" },
+              { n:5, emoji:"👑", name:"Legend" },
+            ] as const).map(({ n, emoji, name }, i, arr) => {
+              const prev = i > 0 ? arr[i-1].n : 0;
+              const st = badgeState(pets.length, n, prev, justEarnedPet);
+              const hint = pets.length < n ? `${n - pets.length} more` : undefined;
+              return <Badge key={n} emoji={emoji} name={name} desc={`Added ${n} pet${n>1?"s":""}`} state={st} hint={hint} />;
+            })}
           </div>
 
           <Divider />

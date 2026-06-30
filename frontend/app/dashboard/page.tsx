@@ -13,6 +13,14 @@ import { usePawzo, useRequireAuth, todayISO, fmtDate, appendActivity } from "../
 
 const STREAK_MS  = [2,5,10,30,60,90,120,150,180,210,240,270,300,330,360];
 const MEM_MS     = [1,10,20,30,40,50,100];
+const PET_MS     = [1,2,3,4,5];
+const PET_TOAST: Record<number,string> = {
+  1: "First Pet Added — your Pawzo journey begins! 🐾",
+  2: "2 Pets — the family is growing! 🐾🐾",
+  3: "3 Pets — you're a true pet parent! 🏆",
+  4: "4 Pets — incredible dedication! 🌟",
+  5: "5 Pets — Pawzo legend status! 👑",
+};
 
 function DashConfetti({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,10 +86,10 @@ export default function Dashboard() {
 
     const crossedStreak = STREAK_MS.filter((m) => prevStreak < m && currentStreak >= m);
     const crossedMem    = MEM_MS.filter((m)    => prevMem    < m && currentMemCount >= m);
-    const newPetBadge   = currentPets.length >= 1 && prevPets < 1;
+    const crossedPets   = PET_MS.filter((m)    => prevPets   < m && currentPets.length >= m);
 
     let toastMsg: string | null = null;
-    if (newPetBadge)          toastMsg = "First Pet Added — your Pawzo journey begins! 🐾";
+    if (crossedPets.length)   toastMsg = PET_TOAST[Math.max(...crossedPets)];
     if (crossedMem.length)    toastMsg = `${Math.max(...crossedMem)} Memories Created — your gallery is growing! 📸`;
     if (crossedStreak.length) toastMsg = `${Math.max(...crossedStreak)}-Day Streak — keep it up! 🔥`;
 
@@ -256,18 +264,18 @@ export default function Dashboard() {
         }}>
           <div style={{
             margin:"10px 16px 0",
-            background:"linear-gradient(135deg,#FDE8EF,#F5D0E8)",
+            background: T.pink,
             borderRadius:18, padding:"13px 20px",
-            boxShadow:"0 8px 28px rgba(192,96,160,0.25)",
+            boxShadow:"0 8px 28px rgba(232,100,160,0.3)",
             display:"flex", alignItems:"center", gap:12,
-            border:"1.5px solid #F0C0DC", maxWidth:340, width:"100%",
+            border:"none", maxWidth:340, width:"100%",
           }}>
-            <div style={{ width:38, height:38, borderRadius:12, background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0, boxShadow:"0 2px 8px rgba(192,96,160,0.15)" }}>
+            <div style={{ width:38, height:38, borderRadius:12, background:"rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
               🎉
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:"#B060A0", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Badge Unlocked!</p>
-              <p style={{ fontSize:13, fontWeight:700, color:"#3D1D54", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{badgeToast.replace(/^[^\s]+ /, "")}</p>
+              <p style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.8)", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.5px" }}>Badge Unlocked!</p>
+              <p style={{ fontSize:13, fontWeight:700, color:"#fff", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{badgeToast.replace(/^[^\s]+ /, "")}</p>
             </div>
           </div>
           <style>{`@keyframes pawzo-toast-in{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}`}</style>
