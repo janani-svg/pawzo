@@ -54,6 +54,8 @@ def _describe_pet(pet: Pet) -> str:
         parts.append(f"DOB {pet.dob}")
     if pet.weight:
         parts.append(f"{pet.weight} kg")
+    if pet.region:
+        parts.append(f"region: {pet.region}")
     if pet.notes:
         parts.append(pet.notes)
     return ", ".join(parts)

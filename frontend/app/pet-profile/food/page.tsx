@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
-import { foodEvalApi, nutritionRecsApi, type ApiFoodEval, type ApiNutritionRec } from "../../lib/api";
+import { foodEvalApi, mealSuggestApi, type ApiFoodEval, type ApiMealSuggestion } from "../../lib/api";
 
 type Draft = { id?: string; name: string; time: string; food: string; kcal: string; ingredients: string };
 const EMPTY: Draft = { name: "", time: "", food: "", kcal: "", ingredients: "" };
@@ -30,9 +30,9 @@ export default function FoodPage() {
   const [foodEval, setFoodEval]       = useState<ApiFoodEval | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
 
-  // AI nutrition recs
-  const [nutritionRecs, setNutritionRecs]           = useState<ApiNutritionRec[] | null>(null);
-  const [nutritionLoading, setNutritionLoading]     = useState(false);
+  // AI meal suggestions
+  const [mealSuggestions, setMealSuggestions]   = useState<ApiMealSuggestion[] | null>(null);
+  const [suggestLoading, setSuggestLoading]     = useState(false);
 
   const pet = ready ? selectedPet() : null;
   if (!ready || !authed) return null;
@@ -84,28 +84,21 @@ export default function FoodPage() {
     }
   }
 
-  async function fetchNutritionRecs() {
-    setNutritionLoading(true);
+  async function fetchMealSuggestions() {
+    setSuggestLoading(true);
     try {
-      const res = await nutritionRecsApi.recommend(pet!.id);
-      setNutritionRecs(res.recipes);
+      const res = await mealSuggestApi.suggest(pet!.id, pet!.region || "");
+      setMealSuggestions(res.suggestions);
     } catch {
       // silent fail
     } finally {
-      setNutritionLoading(false);
+      setSuggestLoading(false);
     }
   }
 
-  function addToPlanner(r: ApiNutritionRec) {
-    add("meals", { petId: pet!.id, name: r.name, time: "", food: r.ingredients, kcal: 0 });
+  function addSuggestionToPlanner(s: ApiMealSuggestion) {
+    add("meals", { petId: pet!.id, name: s.name, time: s.time, food: s.food, kcal: s.kcal });
   }
-
-  const badgeColors: Record<string, { bg: string; color: string; border: string }> = {
-    "Recommended": { bg: "#DCFCE7", color: "#166534", border: "#BBF7D0" },
-    "High protein": { bg: "#DBEAFE", color: "#1E40AF", border: "#BFDBFE" },
-    "Occasional":   { bg: "#FEF9C3", color: "#713F12", border: "#FDE68A" },
-    "Light meal":   { bg: "#F3F4F6", color: "#374151", border: "#E5E7EB" },
-  };
 
   return (
     <AppFrame>
@@ -253,46 +246,56 @@ export default function FoodPage() {
           </>
         )}
 
-        {/* AI Nutrition Plan */}
-        <SectionTitle>AI Nutrition Plan</SectionTitle>
+        {/* AI Meal Suggestions */}
+        <SectionTitle>AI Meal Suggestions</SectionTitle>
 
-        {!nutritionRecs && !nutritionLoading && (
-          <button onClick={fetchNutritionRecs} className="pawzo-press" style={{ width: "100%", background: "#F0FDFA", border: "1.5px solid #99F6E4", borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
+        {!mealSuggestions && !suggestLoading && (
+          <button onClick={fetchMealSuggestions} className="pawzo-press" style={{ width: "100%", background: "#F0FDFA", border: "1.5px solid #99F6E4", borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
             <span style={{ fontSize: 24 }}>🤖</span>
             <div style={{ flex: 1, textAlign: "left" }}>
-              <p style={{ fontSize: 13.5, fontWeight: 700, color: "#0F766E" }}>Get {pet.name}&apos;s Nutrition Plan</p>
-              <p style={{ fontSize: 11.5, color: "#134E4A" }}>Household-measure recipes based on species, breed & region</p>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: "#0F766E" }}>Get meal suggestions for {pet.name}</p>
+              <p style={{ fontSize: 11.5, color: "#134E4A" }}>Region-based meal names, times & portions for {pet.species.toLowerCase()}s</p>
             </div>
           </button>
         )}
 
-        {nutritionLoading && (
+        {suggestLoading && (
           <div style={{ background: "#F0FDFA", border: "1.5px solid #99F6E4", borderRadius: 18, padding: 16, textAlign: "center" }}>
-            <p style={{ fontSize: 13, color: "#0F766E" }}>Generating recipes for {pet.name}…</p>
+            <p style={{ fontSize: 13, color: "#0F766E" }}>Generating meal suggestions for {pet.name}…</p>
           </div>
         )}
 
-        {nutritionRecs && (
+        {mealSuggestions && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {nutritionRecs.map((r, i) => {
-              const bc = badgeColors[r.badge] ?? badgeColors["Light meal"];
-              const cardBgs = ["#FEFCE8", "#F0FDF4", "var(--p-surface)"];
+            {mealSuggestions.map((s, i) => {
+              const cardBgs     = ["#FEFCE8", "#F0FDF4", "var(--p-surface)"];
               const cardBorders = ["#FDE68A", "#BBF7D0", "var(--p-border)"];
               return (
                 <div key={i} style={{ background: cardBgs[i] ?? "var(--p-surface)", border: `1.5px solid ${cardBorders[i] ?? "var(--p-border)"}`, borderRadius: 16, padding: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <p style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, flex: 1, marginRight: 8 }}>{r.name}</p>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: bc.bg, color: bc.color, border: `1px solid ${bc.border}`, borderRadius: 20, padding: "3px 8px", flexShrink: 0 }}>{r.badge}</span>
+                  {/* Meal name + time pill */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: T.ink, margin: 0 }}>{s.name}</p>
+                    {s.time && (
+                      <span style={{ fontSize: 12, fontWeight: 700, background: T.primarySoft, color: T.pinkDeep, border: `1px solid #FBD0E4`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
+                        🕐 {s.time}
+                      </span>
+                    )}
                   </div>
-                  <p style={{ fontSize: 12.5, color: T.gray, lineHeight: 1.5, marginBottom: 4 }}>{r.ingredients}</p>
-                  <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", marginBottom: 10 }}>{r.reason}</p>
-                  <button onClick={() => addToPlanner(r)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
-                    + Add to planner
+                  {/* Food description */}
+                  <p style={{ fontSize: 12.5, color: T.gray, lineHeight: 1.5, margin: "0 0 4px" }}>{s.food}</p>
+                  {/* kcal */}
+                  {s.kcal > 0 && (
+                    <p style={{ fontSize: 11.5, fontWeight: 700, color: T.orange, margin: "0 0 4px" }}>{s.kcal} kcal</p>
+                  )}
+                  {/* Reason */}
+                  <p style={{ fontSize: 11.5, color: T.grayLight, fontStyle: "italic", margin: "0 0 10px" }}>{s.reason}</p>
+                  <button onClick={() => addSuggestionToPlanner(s)} className="pawzo-press" style={{ fontSize: 12, fontWeight: 700, color: T.pinkDeep, background: T.primarySoft, border: `1px solid #FBD0E4`, borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>
+                    + Add to schedule
                   </button>
                 </div>
               );
             })}
-            <button onClick={fetchNutritionRecs} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
+            <button onClick={fetchMealSuggestions} className="pawzo-press" style={{ width: "100%", padding: "11px 0", borderRadius: 14, border: "1.5px solid var(--p-border)", background: "transparent", fontWeight: 700, fontSize: 13, cursor: "pointer", color: T.gray }}>
               🔄 Regenerate
             </button>
             <AiDisclaimer />

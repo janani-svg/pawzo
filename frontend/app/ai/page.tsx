@@ -183,7 +183,8 @@ function AIContent() {
       // Show meal form after food-related AI response (only in pet mode)
       if (pet && lastUserMsgRef.current) {
         setMealName("");
-        setMealTime("");
+        const now = new Date();
+        setMealTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
         setShowMealForm(true);
       }
       scrollToBottom();
