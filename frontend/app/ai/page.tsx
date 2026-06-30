@@ -6,6 +6,8 @@ import { AppFrame, T, IconSpark, AiDisclaimer } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, type Pet } from "../lib/store";
 import { chatApi, type ApiChatMessage } from "../lib/api";
 
+const FOOD_KEYWORDS = /\b(feed|food|eat|meal|diet|nutrition|snack|treat|breakfast|lunch|dinner|kibble|wet food|raw|recipe|ingredient|protein|carb|calori)/i;
+
 type Msg = { id: string; role: "ai" | "user"; text: string; image?: string };
 
 const PERSONA: Record<string, string> = {
@@ -77,7 +79,7 @@ function AIContent() {
   const petId  = params.get("pet");
 
   const { ready, authed } = useRequireAuth();
-  const { state } = usePawzo();
+  const { state, add } = usePawzo();
 
   // pet-specific mode when ?pet=<id> in URL; general mode when no param
   const pet: Pet | null = ready && petId
@@ -91,6 +93,11 @@ function AIContent() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [pendingImage, setPendingImage] = useState<{ base64: string; preview: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showMealForm, setShowMealForm]   = useState(false);
+  const [mealName, setMealName]           = useState("");
+  const [mealTime, setMealTime]           = useState("");
+  const [mealSaved, setMealSaved]         = useState(false);
+  const lastUserMsgRef = useRef("");
   const endRef  = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -141,9 +148,22 @@ function AIContent() {
     requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "instant" }));
   }
 
+  function saveMeal() {
+    if (!mealName.trim() || !pet) return;
+    add("meals", { petId: pet.id, name: mealName.trim(), time: mealTime, food: "", kcal: 0 });
+    setMealSaved(true);
+    setShowMealForm(false);
+    setTimeout(() => setMealSaved(false), 3000);
+  }
+
   async function send(text: string) {
     const t = text.trim();
     if ((!t && !pendingImage) || typing) return;
+
+    // Track if this is a food-related question so we can show the meal form after
+    if (FOOD_KEYWORDS.test(t)) lastUserMsgRef.current = t;
+    else lastUserMsgRef.current = "";
+    setShowMealForm(false);
 
     const img = pendingImage;
     const tempId = `tmp-${Date.now()}`;
@@ -160,6 +180,12 @@ function AIContent() {
         toMsg(res.user_msg),
         toMsg(res.ai_msg),
       ]);
+      // Show meal form after food-related AI response (only in pet mode)
+      if (pet && lastUserMsgRef.current) {
+        setMealName("");
+        setMealTime("");
+        setShowMealForm(true);
+      }
       scrollToBottom();
     } catch {
       const persona = pet ? (PERSONA[pet.species] ?? "Hi!") : "Hi!";
@@ -267,6 +293,46 @@ function AIContent() {
         )}
         <div ref={endRef} />
       </div>
+
+      {/* Meal saved toast */}
+      {mealSaved && (
+        <div className="pawzo-rise" style={{ margin: "0 16px 8px", background: "#ECFDF5", border: "1.5px solid #6EE7B7", borderRadius: 14, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>✅</span>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#065F46", margin: 0 }}>Meal added to {pet?.name}&apos;s schedule!</p>
+        </div>
+      )}
+
+      {/* Quick-add meal form — shown after food-related AI responses */}
+      {showMealForm && pet && (
+        <div className="pawzo-rise" style={{ margin: "0 16px 8px", background: "var(--p-surface)", border: `1.5px solid ${T.pink}`, borderRadius: 16, padding: "14px 14px 12px", boxShadow: T.shadowSoft }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 18 }}>🍽️</span>
+            <p style={{ fontSize: 13, fontWeight: 800, color: T.ink, margin: 0 }}>Add this to {pet.name}&apos;s meal schedule?</p>
+            <button onClick={() => setShowMealForm(false)} style={{ marginLeft: "auto", width: 24, height: 24, borderRadius: 8, border: "none", background: "var(--p-surface-2)", cursor: "pointer", fontSize: 13, color: T.gray, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+          <input
+            value={mealName}
+            onChange={(e) => setMealName(e.target.value)}
+            placeholder="Meal name (e.g. Chicken & Rice)"
+            style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 11, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13, color: T.ink, outline: "none", marginBottom: 8, boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="time"
+              value={mealTime}
+              onChange={(e) => setMealTime(e.target.value)}
+              style={{ flex: 1, height: 40, padding: "0 12px", borderRadius: 11, border: "1.5px solid var(--p-border)", background: "var(--p-surface-2)", fontSize: 13, color: T.ink, outline: "none" }}
+            />
+            <button
+              onClick={saveMeal}
+              disabled={!mealName.trim()}
+              style={{ padding: "0 18px", height: 40, borderRadius: 11, border: "none", background: mealName.trim() ? T.pink : "var(--p-surface-2)", color: mealName.trim() ? "#fff" : T.grayLight, fontSize: 13, fontWeight: 800, cursor: mealName.trim() ? "pointer" : "default" }}
+            >
+              Save meal
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Suggestions */}
       <div className="no-scrollbar" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "14px 16px 8px" }}>
