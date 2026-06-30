@@ -161,8 +161,11 @@ export default function ProfilePage() {
   const filteredDocs = state.documents.filter(d => d.name.toLowerCase().includes(docSearch.toLowerCase()));
 
   // ── Streak milestones ──
-  const STREAK_MILESTONES = getStreakMilestones(currentStreak); // full list for the badge column
-  const doneStreakCount = STREAK_MILESTONES.filter(m => currentStreak >= m).length;
+  // Use the highest ever-earned milestone so previously unlocked badges stay visible
+  // even after a streak reset (earnedStreakSet persists across resets in localStorage).
+  const maxEarnedMs = earnedStreakSet.size > 0 ? Math.max(...earnedStreakSet) : 0;
+  const STREAK_MILESTONES = getStreakMilestones(Math.max(currentStreak, maxEarnedMs));
+  const doneStreakCount = STREAK_MILESTONES.filter(m => currentStreak >= m || earnedStreakSet.has(m)).length;
 
   // next unreached milestone (drives the "X / Y days to next" label)
   let nextStreakIdx = STREAK_MILESTONES.findIndex(m => currentStreak < m);
