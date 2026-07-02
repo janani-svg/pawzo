@@ -5,6 +5,7 @@
    by SoundProvider. */
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, T } from "../components/pawzo-ui";
 import { usePawzo, useRequireAuth, deriveAlerts, getReadAlertIds, markAlertsRead, type Alert } from "../lib/store";
 
@@ -87,8 +88,9 @@ function AlertCard({ n, isRead, onRead, onDismiss }: { n: Alert; isRead: boolean
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { ready, authed } = useRequireAuth();
-  const { state } = usePawzo();
+  const { state, selectPet } = usePawzo();
   const [readIds,   setReadIds]   = useState<Set<string>>(() => getReadAlertIds());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -111,6 +113,12 @@ export default function NotificationsPage() {
   const markRead = (id: string) => { markAlertsRead([id]); setReadIds(getReadAlertIds()); };
   const markAll  = () => { markAlertsRead(alerts.map((a) => a.id)); setReadIds(getReadAlertIds()); };
   const dismiss  = (id: string) => { setDismissed((s) => new Set([...s, id])); markAlertsRead([id]); setReadIds(getReadAlertIds()); };
+  const openAlert = (n: Alert) => {
+    markRead(n.id);
+    if (!n.route) return;
+    if (n.petId) selectPet(n.petId);
+    router.push(n.route);
+  };
 
   return (
     <AppFrame>
@@ -142,7 +150,7 @@ export default function NotificationsPage() {
                   <p style={{ fontSize: 11, fontWeight: 700, color: T.grayLight, letterSpacing: 0.6, margin: "8px 2px 8px" }}>{g.toUpperCase()}</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {items.map((n) => (
-                      <AlertCard key={n.id} n={n} isRead={readIds.has(n.id)} onRead={() => markRead(n.id)} onDismiss={dismiss} />
+                      <AlertCard key={n.id} n={n} isRead={readIds.has(n.id)} onRead={() => openAlert(n)} onDismiss={dismiss} />
                     ))}
                   </div>
                 </div>

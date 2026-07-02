@@ -6,7 +6,7 @@
    recalculates the next due date — no manual date entry after setup. Tasks
    feed the shared notification system (see deriveAlerts in lib/store). */
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import {
@@ -90,8 +90,15 @@ function draftFromTask(t: EnvTask): Draft {
 
 export default function EnvironmentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();
-  const { state, selectedPet, add, update, remove } = usePawzo();
+  const { state, selectedPet, selectPet, add, update, remove } = usePawzo();
+
+  useEffect(() => {
+    const petId = searchParams.get("petId");
+    if (petId && ready) selectPet(petId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
   const [form, setForm] = useState<Draft | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
   const [confetti, setConfetti] = useState(false);

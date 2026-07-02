@@ -790,7 +790,7 @@ export const ENV_DEFAULTS: Record<string, { name: string; intervalDays: number }
   "Guinea pig": [{ name: "Cage Cleaning", intervalDays: 7 }, { name: "Bedding Replacement", intervalDays: 5 }],
 };
 
-export type Alert = { id: string; emoji: string; title: string; body: string; when: string; group: "Today" | "Upcoming"; color: string; sortTime: number; status?: "completed" | "missed" | "upcoming" };
+export type Alert = { id: string; emoji: string; title: string; body: string; when: string; group: "Today" | "Upcoming"; color: string; sortTime: number; status?: "completed" | "missed" | "upcoming"; petId?: string; route?: string };
 
 export function deriveAlerts(state: State): Alert[] {
   const out: Alert[] = [];
@@ -902,6 +902,10 @@ export function deriveAlerts(state: State): Alert[] {
   }
 
   for (const pet of state.pets) {
+    const foodRoute = `/pet-profile/food?petId=${pet.id}`;
+    const healthRoute = `/pet-profile/health?petId=${pet.id}`;
+    const envRoute = `/pet-profile/environment?petId=${pet.id}`;
+    const calendarRoute = `/calendar`;
 
     /* ── Meals ─────────────────────────────────────────────────────── */
     for (const m of state.meals.filter((ml) => ml.petId === pet.id)) {
@@ -911,7 +915,7 @@ export function deriveAlerts(state: State): Alert[] {
       if (mealTimePassed) {
         const minsLate = Math.round((now.getTime() - hhmmToMs(m.time)) / 60000);
         const isSkipped = minsLate > 10;
-        out.push({ id: `meal-${m.id}`, emoji: isSkipped ? pick(MEAL_SKIP_EMOJI, seed) : pick(MEAL_HUNGRY_EMOJI, seed), title: isSkipped ? `${m.name} skipped — ${pet.name}` : `${pet.name} is hungry!`, body: isSkipped ? `${pet.name}'s ${m.name} was missed! Please feed them as soon as possible.` : pick(MEAL_HUNGRY_BODY, seed)(pet.name, m.name), when: fmtDateTime(hhmmToMs(m.time)), group: "Today", color: isSkipped ? pick(MEAL_SKIP_COLOR, seed) : "#FEF3C7", sortTime: hhmmToMs(m.time), status: isSkipped ? "missed" as const : "upcoming" as const });
+        out.push({ id: `meal-${m.id}`, emoji: isSkipped ? pick(MEAL_SKIP_EMOJI, seed) : pick(MEAL_HUNGRY_EMOJI, seed), title: isSkipped ? `${m.name} skipped — ${pet.name}` : `${pet.name} is hungry!`, body: isSkipped ? `${pet.name}'s ${m.name} was missed! Please feed them as soon as possible.` : pick(MEAL_HUNGRY_BODY, seed)(pet.name, m.name), when: fmtDateTime(hhmmToMs(m.time)), group: "Today", color: isSkipped ? pick(MEAL_SKIP_COLOR, seed) : "#FEF3C7", sortTime: hhmmToMs(m.time), status: isSkipped ? "missed" as const : "upcoming" as const, petId: pet.id, route: foodRoute });
       }
       if (log?.done) {
         const fedAtMs = log.fedAt
@@ -919,7 +923,7 @@ export function deriveAlerts(state: State): Alert[] {
               ? (parseInt(localStorage.getItem(`pawzo:meal-fed-at-${pet.id}-${m.id}-${today}`) ?? "0", 10) || 0)
               : 0)
           || (m.time ? hhmmToMs(m.time) : now.getTime());
-        out.push({ id: `meal-done-${m.id}-${today}`, emoji: mealTimePassed ? pick(MEAL_LATE_FED_EMOJI, seed) : pick(MEAL_FED_EMOJI, seed), title: mealTimePassed ? `${m.name} fed` : `${pet.name} has been fed!`, body: mealTimePassed ? pick(MEAL_LATE_FED_BODY, seed)(pet.name, m.name) : pick(MEAL_FED_BODY, seed)(pet.name, m.name), when: fmtDateTime(fedAtMs), group: "Today", color: pick(MEAL_FED_COLOR, seed), sortTime: fedAtMs, status: "completed" as const });
+        out.push({ id: `meal-done-${m.id}-${today}`, emoji: mealTimePassed ? pick(MEAL_LATE_FED_EMOJI, seed) : pick(MEAL_FED_EMOJI, seed), title: mealTimePassed ? `${m.name} fed` : `${pet.name} has been fed!`, body: mealTimePassed ? pick(MEAL_LATE_FED_BODY, seed)(pet.name, m.name) : pick(MEAL_FED_BODY, seed)(pet.name, m.name), when: fmtDateTime(fedAtMs), group: "Today", color: pick(MEAL_FED_COLOR, seed), sortTime: fedAtMs, status: "completed" as const, petId: pet.id, route: foodRoute });
       }
     }
 
@@ -928,11 +932,11 @@ export function deriveAlerts(state: State): Alert[] {
       const seed = med.id + pet.id;
       const given = doneMedKeys.has(`med-${med.id}`);
       if (given) {
-        { const medDoneId = `med-done-${med.id}-${today}`; out.push({ id: medDoneId, emoji: pick(MED_DONE_EMOJI, seed), title: `${med.title} given`, body: `Great job! ${pet.name} got their ${med.title} today. Stay consistent!`, when: seenAt(medDoneId), group: "Today", color: pick(MED_DONE_COLOR, seed), sortTime: stamps[medDoneId] ?? now.getTime(), status: "completed" as const }); }
+        { const medDoneId = `med-done-${med.id}-${today}`; out.push({ id: medDoneId, emoji: pick(MED_DONE_EMOJI, seed), title: `${med.title} given`, body: `Great job! ${pet.name} got their ${med.title} today. Stay consistent!`, when: seenAt(medDoneId), group: "Today", color: pick(MED_DONE_COLOR, seed), sortTime: stamps[medDoneId] ?? now.getTime(), status: "completed" as const, petId: pet.id, route: healthRoute }); }
       } else {
         const hour = now.getHours();
         const slot = hour >= 21 ? "Last chance tonight! 🌙" : hour >= 18 ? "Evening reminder 🌆" : hour >= 12 ? "Afternoon nudge 🌤️" : "Morning reminder ☀️";
-        out.push({ id: `med-${med.id}`, emoji: pick(MED_PEND_EMOJI, seed), title: `${pet.name}'s ${med.title}`, body: `${slot} — ${pet.name}'s medication hasn't been given today. Tap to log it!`, when: fmtDateTime(now.getTime()), group: "Today", color: pick(MED_PEND_COLOR, seed), sortTime: now.getTime() - 100, status: "upcoming" as const });
+        out.push({ id: `med-${med.id}`, emoji: pick(MED_PEND_EMOJI, seed), title: `${pet.name}'s ${med.title}`, body: `${slot} — ${pet.name}'s medication hasn't been given today. Tap to log it!`, when: fmtDateTime(now.getTime()), group: "Today", color: pick(MED_PEND_COLOR, seed), sortTime: now.getTime() - 100, status: "upcoming" as const, petId: pet.id, route: healthRoute });
       }
     }
 
@@ -946,13 +950,13 @@ export function deriveAlerts(state: State): Alert[] {
       // Completed today (all-day events can have date in past)
       if (isDone && (days <= 0) && (e.allDay || days >= -1)) {
         const doneId = `evt-done-${e.id}-${today}`;
-        out.push({ id: doneId, emoji: pick(EVT_DONE_EMOJI, seed), title: `${e.title} completed`, body: `${e.title} for ${pet.name} is all wrapped up. You're on a roll!`, when: seenAt(doneId), group: "Today", color: pick(EVT_DONE_COLOR, seed), sortTime: stamps[doneId] ?? now.getTime(), status: "completed" as const });
+        out.push({ id: doneId, emoji: pick(EVT_DONE_EMOJI, seed), title: `${e.title} completed`, body: `${e.title} for ${pet.name} is all wrapped up. You're on a roll!`, when: seenAt(doneId), group: "Today", color: pick(EVT_DONE_COLOR, seed), sortTime: stamps[doneId] ?? now.getTime(), status: "completed" as const, petId: pet.id, route: calendarRoute });
         continue;
       }
 
       // Past events not done → missed (skip all-day events — they recur daily)
       if (!isDone && !e.allDay && days < 0 && days >= -3) {
-        out.push({ id: `evt-missed-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `Missed: ${e.title}`, body: `${e.title} for ${pet.name} was due ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""} ago. Mark it done or reschedule.`, when: fmtDateTime(dateToMs(e.date, e.time)), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: dateToMs(e.date, e.time), status: "missed" as const });
+        out.push({ id: `evt-missed-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `Missed: ${e.title}`, body: `${e.title} for ${pet.name} was due ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""} ago. Mark it done or reschedule.`, when: fmtDateTime(dateToMs(e.date, e.time)), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: dateToMs(e.date, e.time), status: "missed" as const, petId: pet.id, route: calendarRoute });
         continue;
       }
 
@@ -966,24 +970,24 @@ export function deriveAlerts(state: State): Alert[] {
 
           if (nowMs >= plus10Ms) {
             // 10+ mins past event time and not done → skipped
-            out.push({ id: `evt-skipped-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `${pet.name} skipped: ${e.title}`, body: `${e.title} was scheduled at ${e.time} and wasn't marked done. Did ${pet.name} miss it?`, when: fmtDateTime(plus10Ms), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: plus10Ms, status: "missed" as const });
+            out.push({ id: `evt-skipped-${e.id}`, emoji: pick(EVT_MISS_EMOJI, seed), title: `${pet.name} skipped: ${e.title}`, body: `${e.title} was scheduled at ${e.time} and wasn't marked done. Did ${pet.name} miss it?`, when: fmtDateTime(plus10Ms), group: "Today", color: pick(EVT_MISS_COLOR, seed), sortTime: plus10Ms, status: "missed" as const, petId: pet.id, route: calendarRoute });
           } else if (nowMs >= evtMs) {
             // Exact time window
-            out.push({ id: `evt-now-${e.id}`, emoji: evtEmoji, title: `${e.title} — right now!`, body: `It's time for ${pet.name}'s ${e.title}! Don't keep them waiting 🐾`, when: fmtDateTime(evtMs), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: evtMs, status: "upcoming" as const });
+            out.push({ id: `evt-now-${e.id}`, emoji: evtEmoji, title: `${e.title} — right now!`, body: `It's time for ${pet.name}'s ${e.title}! Don't keep them waiting 🐾`, when: fmtDateTime(evtMs), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: evtMs, status: "upcoming" as const, petId: pet.id, route: calendarRoute });
           } else if (nowMs >= minus10Ms) {
             // 10-minute countdown
             const minsLeft = Math.max(1, Math.round((evtMs - nowMs) / 60000));
-            out.push({ id: `evt-soon-${e.id}`, emoji: "⏰", title: `${e.title} in ${minsLeft} min${minsLeft !== 1 ? "s" : ""}!`, body: `${pet.name}'s ${e.title} starts at ${e.time}. Get ready!`, when: fmtDateTime(minus10Ms), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: minus10Ms, status: "upcoming" as const });
+            out.push({ id: `evt-soon-${e.id}`, emoji: "⏰", title: `${e.title} in ${minsLeft} min${minsLeft !== 1 ? "s" : ""}!`, body: `${pet.name}'s ${e.title} starts at ${e.time}. Get ready!`, when: fmtDateTime(minus10Ms), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: minus10Ms, status: "upcoming" as const, petId: pet.id, route: calendarRoute });
           } else if (now.getHours() >= 8) {
             // Morning reminder — shown from 8 AM until 10-min window opens
             const morningId = `evt-morning-${e.id}`;
-            out.push({ id: morningId, emoji: evtEmoji, title: `Today: ${e.title}`, body: `${pet.name} has ${e.title} at ${e.time} today. Don't forget! 🗓️`, when: seenAt(morningId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[morningId] ?? now.getTime(), status: "upcoming" as const });
+            out.push({ id: morningId, emoji: evtEmoji, title: `Today: ${e.title}`, body: `${pet.name} has ${e.title} at ${e.time} today. Don't forget! 🗓️`, when: seenAt(morningId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[morningId] ?? now.getTime(), status: "upcoming" as const, petId: pet.id, route: calendarRoute });
           }
         } else {
           // No time — all-day reminder visible from 8 AM
           if (now.getHours() >= 8) {
             const allDayId = `evt-${e.id}`;
-            out.push({ id: allDayId, emoji: evtEmoji, title: e.title, body: `Today is the day for ${pet.name}'s ${e.title}! Tap to mark it done when finished. 🐾`, when: seenAt(allDayId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[allDayId] ?? now.getTime(), status: "upcoming" as const });
+            out.push({ id: allDayId, emoji: evtEmoji, title: e.title, body: `Today is the day for ${pet.name}'s ${e.title}! Tap to mark it done when finished. 🐾`, when: seenAt(allDayId), group: "Today", color: pick(EVT_SOON_COLOR, seed), sortTime: stamps[allDayId] ?? now.getTime(), status: "upcoming" as const, petId: pet.id, route: calendarRoute });
           }
         }
       }
@@ -994,7 +998,7 @@ export function deriveAlerts(state: State): Alert[] {
     for (const v of state.vaccinations.filter((v) => v.petId === pet.id && v.nextDue)) {
       const seed = v.id + pet.id;
       const days = daysUntil(v.nextDue);
-      if (days <= 30) out.push({ id: `vac-${v.id}`, emoji: days < 0 ? pick(VAC_OVER_EMOJI, seed) : pick(VAC_SOON_EMOJI, seed), title: `${v.name} ${days < 0 ? "overdue" : "due soon"}`, body: days < 0 ? `${pet.name} is overdue for ${v.name}! Book the vet ASAP.` : `${pet.name} needs ${v.name} in ${days} day${days > 1 ? "s" : ""}.`, when: fmtDateTime(new Date(v.nextDue).getTime()), group: days <= 0 ? "Today" : "Upcoming", color: pick(VAC_COLOR, seed), sortTime: days < 0 ? new Date(v.nextDue).getTime() : now.getTime() - 1 - days * 1000, status: days < 0 ? "missed" as const : "upcoming" as const });
+      if (days <= 30) out.push({ id: `vac-${v.id}`, emoji: days < 0 ? pick(VAC_OVER_EMOJI, seed) : pick(VAC_SOON_EMOJI, seed), title: `${v.name} ${days < 0 ? "overdue" : "due soon"}`, body: days < 0 ? `${pet.name} is overdue for ${v.name}! Book the vet ASAP.` : `${pet.name} needs ${v.name} in ${days} day${days > 1 ? "s" : ""}.`, when: fmtDateTime(new Date(v.nextDue).getTime()), group: days <= 0 ? "Today" : "Upcoming", color: pick(VAC_COLOR, seed), sortTime: days < 0 ? new Date(v.nextDue).getTime() : now.getTime() - 1 - days * 1000, status: days < 0 ? "missed" as const : "upcoming" as const, petId: pet.id, route: healthRoute });
     }
 
     /* ── Environment / Habitat maintenance ─────────────────────────── */
@@ -1005,11 +1009,11 @@ export function deriveAlerts(state: State): Alert[] {
       const lname = t.name.toLowerCase();
       const dueMs = new Date(t.nextDue + "T00:00:00").getTime();
       if (days < 0) {
-        out.push({ id: `env-${t.id}`, emoji: pick(ENV_OVER_EMOJI, seed), title: `${t.name} overdue`, body: `${pet.name}'s ${lname} is overdue by ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""}. Time to freshen up their space! 🧹`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_OVER_COLOR, seed), sortTime: dueMs, status: "missed" as const });
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_OVER_EMOJI, seed), title: `${t.name} overdue`, body: `${pet.name}'s ${lname} is overdue by ${Math.abs(days)} day${Math.abs(days) > 1 ? "s" : ""}. Time to freshen up their space! 🧹`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_OVER_COLOR, seed), sortTime: dueMs, status: "missed" as const, petId: pet.id, route: envRoute });
       } else if (days <= 2) {
-        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in 2 days"}`, body: `${pet.name}'s ${lname} is coming up. Keep their habitat clean and comfy! 🏡`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const });
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in 2 days"}`, body: `${pet.name}'s ${lname} is coming up. Keep their habitat clean and comfy! 🏡`, when: fmtDateTime(dueMs), group: "Today", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const, petId: pet.id, route: envRoute });
       } else if (days <= 7) {
-        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due in ${days} days`, body: `${pet.name}'s ${lname} is due ${fmtDate(t.nextDue)}. Plan ahead! 🗓️`, when: `${fmtDate(t.nextDue)}, 12:00 AM`, group: "Upcoming", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const });
+        out.push({ id: `env-${t.id}`, emoji: pick(ENV_SOON_EMOJI, seed), title: `${t.name} due in ${days} days`, body: `${pet.name}'s ${lname} is due ${fmtDate(t.nextDue)}. Plan ahead! 🗓️`, when: `${fmtDate(t.nextDue)}, 12:00 AM`, group: "Upcoming", color: pick(ENV_SOON_COLOR, seed), sortTime: now.getTime() - 1 - days * 1000, status: "upcoming" as const, petId: pet.id, route: envRoute });
       }
     }
 
@@ -1025,10 +1029,10 @@ export function deriveAlerts(state: State): Alert[] {
       const bdayIso = `${bday.getFullYear()}-${String(bm).padStart(2, "0")}-${String(bd).padStart(2, "0")}`;
       if (bdayDays === 0) {
         const bdayId = `bday-${pet.id}-${today}`;
-        out.push({ id: bdayId, emoji: "🎂", title: `Happy Birthday, ${pet.name}! 🥳`, body: `${pet.name} turns ${age} today! Give them extra cuddles and maybe a birthday treat! 🎊`, when: seenAt(bdayId), group: "Today", color: "#FEF3C7", sortTime: stamps[bdayId] ?? now.getTime(), status: "upcoming" as const });
+        out.push({ id: bdayId, emoji: "🎂", title: `Happy Birthday, ${pet.name}! 🥳`, body: `${pet.name} turns ${age} today! Give them extra cuddles and maybe a birthday treat! 🎊`, when: seenAt(bdayId), group: "Today", color: "#FEF3C7", sortTime: stamps[bdayId] ?? now.getTime(), status: "upcoming" as const, petId: pet.id, route: calendarRoute });
       } else if (bdayDays <= 7) {
         const bdayUpcomingWhen = `${fmtDate(bdayIso)}, 12:00 AM`;
-        out.push({ id: `bday-${pet.id}-upcoming`, emoji: "🎂", title: `${pet.name}'s birthday in ${bdayDays} day${bdayDays > 1 ? "s" : ""}!`, body: bdayDays === 1 ? `${pet.name} turns ${age} tomorrow! Get those birthday treats ready! 🐾` : `${pet.name} turns ${age} on ${fmtDate(bdayIso)}. Start planning something special! 🎉`, when: bdayUpcomingWhen, group: "Upcoming", color: "#FEF9C3", sortTime: now.getTime() - 1 - bdayDays * 1000, status: "upcoming" as const });
+        out.push({ id: `bday-${pet.id}-upcoming`, emoji: "🎂", title: `${pet.name}'s birthday in ${bdayDays} day${bdayDays > 1 ? "s" : ""}!`, body: bdayDays === 1 ? `${pet.name} turns ${age} tomorrow! Get those birthday treats ready! 🐾` : `${pet.name} turns ${age} on ${fmtDate(bdayIso)}. Start planning something special! 🎉`, when: bdayUpcomingWhen, group: "Upcoming", color: "#FEF9C3", sortTime: now.getTime() - 1 - bdayDays * 1000, status: "upcoming" as const, petId: pet.id, route: calendarRoute });
       }
     }
   }
