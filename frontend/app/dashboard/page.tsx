@@ -142,7 +142,7 @@ export default function Dashboard() {
       const log = state.mealLogs.find((l) => l.petId === m.petId && l.mealId === m.id && l.date === today);
       return { type: "meal" as const, id: m.id, petId: m.petId, petName: pet.name, mealName: m.name, label: `${m.name} · ${pet.name}`, time: m.time, done: !!log?.done };
     });
-  const todaysEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && (e.allDay ? e.date <= today : e.date === today));
+  const todaysEvents = state.events.filter((e) => pets.some((p) => p.id === e.petId) && e.date === today);
   const todaysVets      = state.health.filter((h) => h.kind === "vet" && h.date === today && pets.some((p) => p.id === h.petId));
   const activeMeds      = state.health.filter((h) => h.kind === "medication" && h.active && pets.some((p) => p.id === h.petId));
   const todaysVaccines  = state.vaccinations.filter((v) => v.nextDue === today && pets.some((p) => p.id === v.petId));
