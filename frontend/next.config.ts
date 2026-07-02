@@ -3,9 +3,9 @@ const nextConfig = {
   allowedDevOrigins: ['172.16.17.183'],
   async rewrites() {
     return [
-      { source: '/auth/:path*', destination: 'https://pawzo.onrender.com/auth/:path*' },
-      { source: '/pets/:path*', destination: 'https://pawzo.onrender.com/pets/:path*' },
-      { source: '/user/:path*', destination: 'https://pawzo.onrender.com/user/:path*' },
+      { source: '/auth/:path*', destination: 'https://pawzo-ajf9.onrender.com/auth/:path*' },
+      { source: '/pets/:path*', destination: 'https://pawzo-ajf9.onrender.com/pets/:path*' },
+      { source: '/user/:path*', destination: 'https://pawzo-ajf9.onrender.com/user/:path*' },
     ];
   },
 };
