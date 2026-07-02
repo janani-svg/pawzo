@@ -54,11 +54,36 @@ export const T = {
 } as const;
 
 /* ----------------------------------------------------------------- logo */
-/* Kept EXACTLY as the dashboard reference: paw emoji + bold pink "Pawzo". */
+/* Vector paw print (solid brand pink) + bold pink "Pawzo" wordmark. */
+/* Two overlapping paw prints (mirrors the classic "paw prints" emoji layout), solid pink. */
+export function IconPawLogo({ size = 26, color = T.pink }: { size?: number; color?: string }) {
+  return (
+    <svg width={size * 1.209} height={size * 1.044} viewBox="-84 -88 220 190" fill={color} aria-hidden="true">
+      {/* solid backing (matches page canvas) so the app's tiled background paw pattern can't show through this icon;
+          widened to the right so it fully covers the gap before the wordmark */}
+      <rect x="-84" y="-88" width="220" height="190" fill={T.bg} />
+      <g transform="translate(-40,-44) scale(0.62) rotate(-14)">
+        <ellipse cx="0" cy="24" rx="36" ry="28" />
+        <ellipse cx="-33" cy="-20" rx="13" ry="17" transform="rotate(-18 -33 -20)" />
+        <ellipse cx="-12" cy="-36" rx="13" ry="17" transform="rotate(-6 -12 -36)" />
+        <ellipse cx="12" cy="-36" rx="13" ry="17" transform="rotate(6 12 -36)" />
+        <ellipse cx="33" cy="-20" rx="13" ry="17" transform="rotate(18 33 -20)" />
+      </g>
+      <g transform="translate(32,36) scale(0.98) rotate(10)">
+        <ellipse cx="0" cy="24" rx="36" ry="28" />
+        <ellipse cx="-33" cy="-20" rx="13" ry="17" transform="rotate(-18 -33 -20)" />
+        <ellipse cx="-12" cy="-36" rx="13" ry="17" transform="rotate(-6 -12 -36)" />
+        <ellipse cx="12" cy="-36" rx="13" ry="17" transform="rotate(6 12 -36)" />
+        <ellipse cx="33" cy="-20" rx="13" ry="17" transform="rotate(18 33 -20)" />
+      </g>
+    </svg>
+  );
+}
+
 export function PawzoLogo({ size = 26 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span style={{ fontSize: size, lineHeight: 1 }}>🐾</span>
+      <IconPawLogo size={size} />
       <span
         style={{
           fontSize: size,
