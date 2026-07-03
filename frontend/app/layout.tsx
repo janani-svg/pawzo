@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { PawzoProvider } from "./lib/store";
@@ -21,16 +21,15 @@ export const metadata: Metadata = {
   title: "PAWZO — A warm hug for your pet's whole life",
   description:
     "Track health, feeding, meds, growth, and memories — and reach an emergency vet fast. PAWZO keeps everything about your pet in one happy place.",
+  manifest: "/manifest.json",
   appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
     title: "Pawzo",
-    statusBarStyle: "black-translucent",
   },
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: "#EC4899",
+  icons: {
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
