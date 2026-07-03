@@ -51,3 +51,4 @@ websockets==16.0
 apscheduler==3.10.4
 pywebpush==2.0.0
 resend==2.10.0
+sendgrid==6.11.0
