@@ -40,6 +40,7 @@ export type State = {
   currentUserUsername: string;
   currentUserEmail: string;
   currentUserPhoto: string;
+  emailVerified: boolean;
   selectedPetId: string | null;
   pets: Pet[];
   meals: Meal[];
@@ -62,7 +63,7 @@ export type State = {
 };
 
 const EMPTY: State = {
-  accounts: [], currentUserId: null, currentUserName: "", currentUserUsername: "", currentUserEmail: "", currentUserPhoto: "", selectedPetId: null,
+  accounts: [], currentUserId: null, currentUserName: "", currentUserUsername: "", currentUserEmail: "", currentUserPhoto: "", emailVerified: false, selectedPetId: null,
   pets: [], meals: [], mealLogs: [], vaccinations: [], weights: [], health: [],
   expenses: [], milestones: [], memories: [], events: [], environment: [], vet: null, documents: [],
   settings: { theme: "light", push: true, email: false, sound: true, units: "metric", currency: "USD", language: "English" },
@@ -198,6 +199,8 @@ type Ctx = {
   logout:           () => void;
   requestDeletion:  () => Promise<void>;
   resetPassword:    (email: string, newPassword: string) => { ok: boolean; error?: string };
+  sendVerification: () => Promise<{ ok: boolean; error?: string; message?: string }>;
+  verifyEmail:      (code: string) => Promise<{ ok: boolean; error?: string }>;
   currentUser:      () => { id: string; name: string; username: string; email: string; photo: string } | null;
   updateUserPhoto:  (photoUrl: string) => Promise<void>;
   addPet:        (p: Omit<Pet, "id" | "ownerId" | "createdAt">) => Promise<string>;
@@ -306,7 +309,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
 
     authApi.me()
       .then((user) => loadAll(user.id).then((data) => {
-        mutate((s) => ({ ...s, ...data, currentUserName: user.name, currentUserUsername: user.username, currentUserEmail: user.email }));
+        mutate((s) => ({ ...s, ...data, currentUserName: user.name, currentUserUsername: user.username, currentUserEmail: user.email, emailVerified: user.email_verified ?? false }));
         // Seed savedAlertKeysRef with already-persisted alert IDs so we don't re-upsert them
         if (data.pastAlerts) {
           data.pastAlerts.forEach(a => savedAlertKeysRef.current.add(a.id));
@@ -331,7 +334,8 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         const res = await authApi.register({ name, username, email, password });
         localStorage.setItem("pawzo:token", res.access_token);
         const data = await loadAll(res.user.id);
-        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email }));
+        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified: res.user.email_verified ?? false }));
+        authApi.sendVerification().catch(() => {});
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };
@@ -343,7 +347,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         const res = await authApi.login({ identifier: idOrEmail, password });
         localStorage.setItem("pawzo:token", res.access_token);
         const data = await loadAll(res.user.id);
-        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email }));
+        mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified: res.user.email_verified ?? false }));
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };
@@ -360,6 +364,25 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
     },
 
     resetPassword: () => ({ ok: false, error: "Password reset via email — coming soon." }),
+
+    sendVerification: async () => {
+      try {
+        const res = await authApi.sendVerification();
+        return { ok: true, message: res.message };
+      } catch (e: unknown) {
+        return { ok: false, error: (e as Error).message };
+      }
+    },
+
+    verifyEmail: async (code) => {
+      try {
+        const user = await authApi.verifyEmail(code);
+        mutate((s) => ({ ...s, emailVerified: user.email_verified ?? false }));
+        return { ok: true };
+      } catch (e: unknown) {
+        return { ok: false, error: (e as Error).message };
+      }
+    },
 
     currentUser: () => {
       const s = stateRef.current;

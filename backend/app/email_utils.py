@@ -61,14 +61,39 @@ def _smtp_send(msg: EmailMessage) -> None:
         raise
 
 
-def send_reset_email(to_email: str, reset_link: str) -> None:
+def send_verification_email(to_email: str, code: str, verify_link: str) -> None:
+    subject = "Verify your Pawzo email"
+    body = (
+        f"Hi there! 🐾\n\n"
+        f"Welcome to Pawzo! Verify your email using either option below:\n\n"
+        f"Option 1 — Enter this code in the app:\n\n"
+        f"    {code}\n\n"
+        f"Option 2 — Click this link:\n\n"
+        f"    {verify_link}\n\n"
+        f"This code and link expire in 10 minutes. If you didn't request this, ignore this email.\n\n"
+        f"— The Pawzo team"
+    )
+    if _send_via_sendgrid(to_email, subject, body):
+        return
+    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"]    = smtp_from
+    msg["To"]      = to_email
+    msg.set_content(body)
+    _smtp_send(msg)
+
+
+def send_reset_email(to_email: str, reset_link: str, code: str) -> None:
     subject = "Reset your Pawzo password"
     body = (
         f"Hi there! 🐾\n\n"
-        f"We received a request to reset your Pawzo password.\n\n"
-        f"Click the link below to set a new password:\n\n"
+        f"We received a request to reset your Pawzo password. Use either option below:\n\n"
+        f"Option 1 — Enter this code in the app:\n\n"
+        f"    {code}\n\n"
+        f"Option 2 — Click this link to set a new password directly:\n\n"
         f"    {reset_link}\n\n"
-        f"This link expires in 1 hour. If you didn't request this, ignore this email.\n\n"
+        f"This code and link expire in 1 hour. If you didn't request this, ignore this email.\n\n"
         f"— The Pawzo team"
     )
     if _send_via_sendgrid(to_email, subject, body):

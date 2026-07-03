@@ -11,7 +11,10 @@ function ResetForm() {
   const router = useRouter();
   const params = useSearchParams();
   const token  = params.get("token") ?? "";
+  const mode: "token" | "code" = token ? "token" : "code";
 
+  const [email,   setEmail]   = useState("");
+  const [code,    setCode]    = useState("");
   const [pw,      setPw]      = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw,  setShowPw]  = useState(false);
@@ -19,22 +22,13 @@ function ResetForm() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!token) {
-    return (
-      <div style={{ textAlign: "center", padding: "40px 24px" }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Invalid link</h1>
-        <p style={{ fontSize: 14, color: T.gray }}>This reset link is missing a token. Please request a new one.</p>
-        <Link href="/login" style={{ display: "inline-block", marginTop: 20, color: T.pink, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-          ← Back to log in
-        </Link>
-      </div>
-    );
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (mode === "code" && (!email.trim() || code.trim().length !== 6)) {
+      setError("Enter your email and the 6-digit code from your email.");
+      return;
+    }
     if (!strongPassword(pw)) {
       setError("Password needs 8+ chars, an uppercase letter, a number and a symbol.");
       return;
@@ -45,7 +39,9 @@ function ResetForm() {
     }
     setLoading(true);
     try {
-      const r = await authApi.resetPassword(token, pw);
+      const r = mode === "token"
+        ? await authApi.resetPassword(token, pw)
+        : await authApi.resetPasswordCode(email.trim(), code.trim(), pw);
       setSuccess(r.message);
       setTimeout(() => router.push("/login"), 2500);
     } catch (e: unknown) {
@@ -62,8 +58,38 @@ function ResetForm() {
         Set new password
       </h1>
       <p style={{ fontSize: 14, color: T.gray, textAlign: "center", margin: "0 0 24px" }}>
-        Choose a strong password for your account.
+        {mode === "code"
+          ? "Enter the email and 6-digit code we sent you, plus a new password."
+          : "Choose a strong password for your account."}
       </p>
+
+      {mode === "code" && (
+        <>
+          <label style={{ display: "block", marginBottom: 14 }}>
+            <span style={fieldLabel}>Email address</span>
+            <input
+              style={inputStyle}
+              type="email"
+              placeholder="you@pawzo.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(""); }}
+              autoComplete="email"
+            />
+          </label>
+          <label style={{ display: "block", marginBottom: 14 }}>
+            <span style={fieldLabel}>6-digit code</span>
+            <input
+              style={{ ...inputStyle, letterSpacing: 4, fontWeight: 700 }}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+              autoComplete="one-time-code"
+            />
+          </label>
+        </>
+      )}
 
       <label style={{ display: "block", marginBottom: 14 }}>
         <span style={fieldLabel}>New password</span>

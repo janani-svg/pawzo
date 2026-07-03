@@ -67,6 +67,7 @@ export default function Dashboard() {
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [badgeToast, setBadgeToast]     = useState<string | null>(null);
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const celebFired = useRef(false);
 
   useEffect(() => {
@@ -294,6 +295,23 @@ export default function Dashboard() {
         <PawzoLogo size={25} />
         <Link href="/settings" aria-label="Settings" style={{ position: "absolute", right: 16, color: T.grayLight, display: "flex" }}><IconGear /></Link>
       </header>
+
+      {!state.emailVerified && !verifyBannerDismissed && (
+        <div style={{ margin: "0 16px 12px", background: "#FFF7E6", border: "1px solid #F5D98B", borderRadius: 14, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📬</span>
+          <p style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: "#8A6100", margin: 0 }}>
+            Please verify your email.{" "}
+            <Link href="/verify" style={{ color: "#8A6100", textDecoration: "underline", fontWeight: 800 }}>Verify now</Link>
+          </p>
+          <button
+            onClick={() => setVerifyBannerDismissed(true)}
+            aria-label="Dismiss"
+            style={{ background: "none", border: "none", color: "#8A6100", fontSize: 16, fontWeight: 800, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <main style={{ padding: "10px 0 0" }}>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: T.ink, margin: "0 16px 12px" }}>

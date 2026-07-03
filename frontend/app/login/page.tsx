@@ -251,7 +251,7 @@ export default function LoginPage() {
                 Forgot password 🔑
               </h1>
               <p style={{ fontSize: 13.5, color: T.gray, textAlign: "center", margin: "0 0 22px" }}>
-                Enter your email and we&apos;ll send you a reset link.
+                Enter your email and we&apos;ll send you a code and a reset link.
               </p>
 
               <form onSubmit={doReset}>
@@ -275,7 +275,7 @@ export default function LoginPage() {
                 )}
 
                 <PrimaryButton full type="submit" disabled={fLoading} style={{ height: 52, borderRadius: 26 }}>
-                  {fLoading ? "Sending…" : "Send reset link"}
+                  {fLoading ? "Sending…" : "Send code & link"}
                 </PrimaryButton>
               </form>
 
