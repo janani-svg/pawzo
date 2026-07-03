@@ -30,6 +30,9 @@ def _send_via_sendgrid(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
+SMTP_CONNECT_TIMEOUT = 10  # seconds — Render silently drops SMTP ports, so fail fast instead of hanging
+
+
 def _smtp_send(msg: EmailMessage) -> None:
     smtp_host     = os.getenv("SMTP_HOST", "")
     smtp_port     = int(os.getenv("SMTP_PORT", "587"))
@@ -44,13 +47,13 @@ def _smtp_send(msg: EmailMessage) -> None:
     print(f"[pawzo] Sending email to {msg['To']} via {smtp_host}:{smtp_port} tls={smtp_use_tls}")
     try:
         if smtp_use_tls:
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=SMTP_CONNECT_TIMEOUT) as server:
                 server.starttls()
                 if smtp_user:
                     server.login(smtp_user, smtp_password)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=SMTP_CONNECT_TIMEOUT) as server:
                 if smtp_user:
                     server.login(smtp_user, smtp_password)
                 server.send_message(msg)

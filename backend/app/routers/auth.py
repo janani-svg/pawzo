@@ -136,7 +136,10 @@ async def send_verification(
     )
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     verify_link = f"{frontend_url}/verify?token={token}"
-    send_verification_email(current_user.email, code, verify_link)
+    try:
+        send_verification_email(current_user.email, code, verify_link)
+    except Exception:
+        raise HTTPException(502, "Could not send the verification email right now. Please try again shortly.")
 
     return {"message": f"Verification code sent to {current_user.email}"}
 
