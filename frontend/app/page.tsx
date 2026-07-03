@@ -7,17 +7,36 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { T, PrimaryButton, IconPaw } from "./components/pawzo-ui";
 
+const SEEN_LANDING_KEY = "pawzo:seenLanding";
+
 export default function Landing() {
+  const router = useRouter();
+  const [showSplash, setShowSplash] = useState<boolean | null>(null);
   const [walked, setWalked] = useState(false);
   const [showCta, setShowCta] = useState(false);
 
+  // First launch ever: play the splash. Every launch after that: skip straight to the dashboard.
   useEffect(() => {
+    if (localStorage.getItem(SEEN_LANDING_KEY)) {
+      setShowSplash(false);
+      router.replace("/dashboard");
+    } else {
+      localStorage.setItem(SEEN_LANDING_KEY, "1");
+      setShowSplash(true);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!showSplash) return;
     const t1 = setTimeout(() => setWalked(true), 2600);
     const t2 = setTimeout(() => setShowCta(true), 3400);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  }, [showSplash]);
+
+  if (!showSplash) return null;
 
   // diagonal trail of paws (the two large ones are the hero pair)
   const paws = [

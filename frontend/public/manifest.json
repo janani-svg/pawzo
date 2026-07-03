@@ -2,7 +2,7 @@
   "name": "Pawzo",
   "short_name": "Pawzo",
   "description": "Your pet care companion",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#FFF0F5",
   "theme_color": "#E8407A",
