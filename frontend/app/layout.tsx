@@ -21,6 +21,15 @@ export const metadata: Metadata = {
   title: "PAWZO — A warm hug for your pet's whole life",
   description:
     "Track health, feeding, meds, growth, and memories — and reach an emergency vet fast. PAWZO keeps everything about your pet in one happy place.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Pawzo",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
