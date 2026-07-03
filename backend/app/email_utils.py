@@ -6,6 +6,28 @@ from email.message import EmailMessage
 logger = logging.getLogger("pawzo.email")
 
 
+def _send_via_resend(to_email: str, subject: str, body: str) -> bool:
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        return False
+    try:
+        import resend
+        resend.api_key = api_key
+        from_email = os.getenv("RESEND_FROM", "Pawzo <onboarding@resend.dev>")
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        })
+        print(f"[pawzo] Email sent via Resend to {to_email}")
+        return True
+    except Exception as e:
+        logger.error("Resend failed: %s", e)
+        print(f"[pawzo] Resend ERROR: {e}")
+        return False
+
+
 def _smtp_send(msg: EmailMessage) -> None:
     smtp_host     = os.getenv("SMTP_HOST", "")
     smtp_port     = int(os.getenv("SMTP_PORT", "587"))
@@ -38,28 +60,28 @@ def _smtp_send(msg: EmailMessage) -> None:
 
 
 def send_verification_email(to_email: str, code: str) -> None:
-    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
-    msg = EmailMessage()
-    msg["Subject"] = "Your Pawzo verification code"
-    msg["From"]    = smtp_from
-    msg["To"]      = to_email
-    msg.set_content(
+    subject = "Your Pawzo verification code"
+    body = (
         f"Hi there! 🐾\n\n"
         f"Your Pawzo email verification code is:\n\n"
         f"    {code}\n\n"
         f"It expires in 10 minutes. If you didn't request this, ignore this email.\n\n"
         f"— The Pawzo team"
     )
+    if _send_via_resend(to_email, subject, body):
+        return
+    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"]    = smtp_from
+    msg["To"]      = to_email
+    msg.set_content(body)
     _smtp_send(msg)
 
 
 def send_reset_email(to_email: str, reset_link: str) -> None:
-    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
-    msg = EmailMessage()
-    msg["Subject"] = "Reset your Pawzo password"
-    msg["From"]    = smtp_from
-    msg["To"]      = to_email
-    msg.set_content(
+    subject = "Reset your Pawzo password"
+    body = (
         f"Hi there! 🐾\n\n"
         f"We received a request to reset your Pawzo password.\n\n"
         f"Click the link below to set a new password:\n\n"
@@ -67,4 +89,12 @@ def send_reset_email(to_email: str, reset_link: str) -> None:
         f"This link expires in 1 hour. If you didn't request this, ignore this email.\n\n"
         f"— The Pawzo team"
     )
+    if _send_via_resend(to_email, subject, body):
+        return
+    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"]    = smtp_from
+    msg["To"]      = to_email
+    msg.set_content(body)
     _smtp_send(msg)
