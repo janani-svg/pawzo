@@ -5,7 +5,7 @@
    default vaccines or sample weights. */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, Pill, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil } from "../../lib/store";
 import type { Meal, MealLog } from "../../lib/store";
@@ -13,6 +13,14 @@ import type { Meal, MealLog } from "../../lib/store";
 type Form = null | { kind: "vaccine" | "vet" | "medication" };
 
 export default function HealthPage() {
+  return (
+    <Suspense fallback={null}>
+      <HealthPageInner />
+    </Suspense>
+  );
+}
+
+function HealthPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();

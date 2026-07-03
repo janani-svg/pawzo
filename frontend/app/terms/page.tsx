@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { AppFrame, TopBar, T } from "../components/pawzo-ui";
 
 export default function TermsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TermsPageInner />
+    </Suspense>
+  );
+}
+
+function TermsPageInner() {
   const params = useSearchParams();
   const fromSignup = params.get("ref") === "signup";
   return (

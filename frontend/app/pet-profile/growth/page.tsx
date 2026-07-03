@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
-import { usePawzo, useRequireAuth, todayISO } from "../../lib/store";
+import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
 import { weightAnalysisApi, type ApiWeightAnalysis } from "../../lib/api";
 
 export default function GrowthPage() {

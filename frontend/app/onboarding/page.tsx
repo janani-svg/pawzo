@@ -38,6 +38,7 @@ const TOUR = [
 export default function Onboarding() {
   const router = useRouter();
   const { ready } = useRequireAuth();
+  const { setSettings } = usePawzo();
   const [step, setStep] = useState(0);
   const [owner, setOwner] = useState<boolean | null>(null);
   const [petType, setPetType] = useState("Dog");

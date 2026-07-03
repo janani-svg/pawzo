@@ -23,7 +23,7 @@ export async function subscribeToPush(token: string): Promise<void> {
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly:      true,
-        applicationServerKey: urlB64ToUint8Array(key),
+        applicationServerKey: urlB64ToUint8Array(key) as BufferSource,
       });
     }
 

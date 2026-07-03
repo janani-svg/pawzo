@@ -7,7 +7,7 @@
    feed the shared notification system (see deriveAlerts in lib/store). */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle } from "../../components/pawzo-ui";
 import {
   usePawzo, useRequireAuth, todayISO, fmtDate, daysUntil,
@@ -89,6 +89,14 @@ function draftFromTask(t: EnvTask): Draft {
 }
 
 export default function EnvironmentPage() {
+  return (
+    <Suspense fallback={null}>
+      <EnvironmentPageInner />
+    </Suspense>
+  );
+}
+
+function EnvironmentPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();

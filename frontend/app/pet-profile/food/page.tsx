@@ -4,7 +4,7 @@
    and AI nutrition plan with household-measure recipes. */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { AppFrame, BottomNav, TopBar, SectionTitle, PrimaryButton, GhostButton, T, IconPlus, inputStyle, AiDisclaimer } from "../../components/pawzo-ui";
 import { usePawzo, useRequireAuth, todayISO, fmtDate } from "../../lib/store";
 import { foodEvalApi, mealSuggestApi, type ApiFoodEval, type ApiMealSuggestion } from "../../lib/api";
@@ -13,6 +13,14 @@ type Draft = { id?: string; name: string; time: string; food: string; kcal: stri
 const EMPTY: Draft = { name: "", time: "", food: "", kcal: "", ingredients: "" };
 
 export default function FoodPage() {
+  return (
+    <Suspense fallback={null}>
+      <FoodPageInner />
+    </Suspense>
+  );
+}
+
+function FoodPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authed } = useRequireAuth();

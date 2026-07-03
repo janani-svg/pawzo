@@ -377,7 +377,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
     verifyEmail: async (code) => {
       try {
         const user = await authApi.verifyEmail(code);
-        mutate((s) => ({ ...s, emailVerified: user.email_verified }));
+        mutate((s) => ({ ...s, emailVerified: user.email_verified ?? false }));
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };
@@ -465,7 +465,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
 
     /* ── Generic CRUD ──────────────────────────────────────────────────── */
     add: async (coll, item) => {
-      const { petId, ...rest } = item as { petId: string } & Record<string, unknown>;
+      const { petId, ...rest } = item as unknown as { petId: string } & Record<string, unknown>;
       const [apiRes, id] = await callCreate(coll, petId, rest);
       const converted = convertFromApi(coll, petId, apiRes);
       mutate((s) => ({
@@ -628,7 +628,7 @@ function toApiBody(coll: CollKey, item: Record<string, unknown>): Record<string,
 
 /* Convert API response → frontend type */
 function convertFromApi(coll: CollKey, petId: string, res: Record<string, unknown>): unknown {
-  const base = { ...res, petId: res.pet_id ?? petId };
+  const base: Record<string, unknown> = { ...res, petId: res.pet_id ?? petId };
   delete (base as Record<string, unknown>).pet_id;
   if (coll === "vaccinations") { base.nextDue = res.next_due ?? ""; delete (base as Record<string, unknown>).next_due; }
   if (coll === "expenses")     { base.receipt = res.receipt_url ?? ""; delete (base as Record<string, unknown>).receipt_url; }
@@ -653,7 +653,7 @@ function convertFromApi(coll: CollKey, petId: string, res: Record<string, unknow
 async function callCreate(coll: CollKey, petId: string, body: Record<string, unknown>): Promise<[Record<string, unknown>, string]> {
   const route = COLL_ROUTE[coll];
   const apiBody = toApiBody(coll, { ...body, petId });
-  let res: Record<string, unknown>;
+  let res: unknown;
   switch (coll) {
     case "meals":         res = await mealsApi.create(petId, apiBody as never);         break;
     case "vaccinations":  res = await vaccinationsApi.create(petId, apiBody as never);  break;
@@ -667,7 +667,7 @@ async function callCreate(coll: CollKey, petId: string, body: Record<string, unk
     default:
       throw new Error(`No create route for ${route}`);
   }
-  return [res as Record<string, unknown>, res.id as string];
+  return [res as Record<string, unknown>, (res as { id: string }).id];
 }
 
 async function callUpdate(coll: CollKey, petId: string, id: string, patch: Record<string, unknown>): Promise<void> {

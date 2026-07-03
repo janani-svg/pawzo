@@ -57,7 +57,7 @@ export default function CalendarPage() {
 
   // Build unified CalItem arrays
   const calEvents: CalItem[] = events.map((e) => ({ kind: "event", ...e }));
-  const calEnv: CalItem[] = envTasks.map((t) => ({
+  const calEnv: Extract<CalItem, { kind: "env" }>[] = envTasks.map((t) => ({
     kind: "env", id: t.id, petId: t.petId, title: t.name, date: t.nextDue, status: envTaskStatus(t),
   }));
   const allItems: CalItem[] = [...calEvents, ...calEnv];
