@@ -17,14 +17,19 @@ def _smtp_send(msg: EmailMessage) -> None:
         print(f"[pawzo] SMTP not configured — email to {msg['To']}:\n{msg.get_content()}")
         return
 
-    print(f"[pawzo] Sending email to {msg['To']} via {smtp_host}:{smtp_port}")
+    print(f"[pawzo] Sending email to {msg['To']} via {smtp_host}:{smtp_port} tls={smtp_use_tls}")
     try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            if smtp_use_tls:
+        if smtp_use_tls:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
                 server.starttls()
-            if smtp_user:
-                server.login(smtp_user, smtp_password)
-            server.send_message(msg)
+                if smtp_user:
+                    server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                if smtp_user:
+                    server.login(smtp_user, smtp_password)
+                server.send_message(msg)
         print(f"[pawzo] Email sent successfully to {msg['To']}")
     except Exception as e:
         logger.error("Failed to send email to %s: %s", msg["To"], e)
