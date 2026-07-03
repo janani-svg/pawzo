@@ -40,10 +40,6 @@ export const authApi = {
 
   me: () => get<ApiUser>("/auth/me"),
 
-  sendVerification: () => post<{ message: string }>("/auth/send-verification"),
-
-  verifyEmail: (code: string) => post<ApiUser>("/auth/verify-email", { code }),
-
   forgotPassword: (email: string) => post<{ message: string }>("/auth/forgot-password", { email }),
 
   resetPassword: (token: string, new_password: string) =>
@@ -193,7 +189,7 @@ export const accountApi = {
 
 /* ── API shape types (snake_case — match FastAPI schemas) ───────────────── */
 export interface ApiUser {
-  id: string; name: string; username: string; email: string; email_verified?: boolean; photo_url?: string; created_at: string;
+  id: string; name: string; username: string; email: string; photo_url?: string; created_at: string;
 }
 export interface ApiActivity {
   dates: string[]; streak: number; streak_broken: boolean;

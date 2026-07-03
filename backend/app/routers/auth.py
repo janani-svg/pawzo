@@ -1,5 +1,4 @@
 import os
-import secrets
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,33 +7,25 @@ from app.db.database import get_db
 from app.models.models import User, UserSettings
 from app.schemas.schemas import (
     RegisterRequest, LoginRequest, TokenResponse, UserOut,
-    VerifyEmailRequest, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
+    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
 )
 from app.auth import hash_password, verify_password, create_token, get_current_user
-from app.email_utils import send_verification_email, send_reset_email
+from app.email_utils import send_reset_email
 
 router = APIRouter()
-
-VERIFICATION_CODE_TTL_MIN = 10
 
 
 @router.post("/register", response_model=TokenResponse)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    # If email exists but is unverified, delete and allow re-registration
     result = await db.execute(select(User).where(User.email == body.email.lower()))
     existing = result.scalar_one_or_none()
     if existing:
-        if existing.email_verified:
-            raise HTTPException(400, "Email already registered")
-        await db.delete(existing)
-        await db.flush()
+        raise HTTPException(400, "Email already registered")
 
-    # If username is taken by a different (verified) account, reject
     result = await db.execute(select(User).where(User.username == body.username.lower()))
     existing_username = result.scalar_one_or_none()
     if existing_username:
-        if existing_username.email_verified or existing_username.email != body.email.lower():
-            raise HTTPException(400, "Username already taken")
+        raise HTTPException(400, "Username already taken")
 
     user = User(
         name=body.name,
@@ -117,26 +108,6 @@ async def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/send-verification", response_model=MessageResponse)
-async def send_verification(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if current_user.email_verified:
-        raise HTTPException(400, "Email already verified")
-
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    current_user.verification_code = code
-    current_user.verification_code_expires = (
-        datetime.utcnow() + timedelta(minutes=VERIFICATION_CODE_TTL_MIN)
-    )
-    await db.commit()
-
-    send_verification_email(current_user.email, code)
-
-    return {"message": f"Verification code sent to {current_user.email}"}
-
-
 @router.post("/forgot-password", response_model=MessageResponse)
 async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     from jose import jwt as jose_jwt
@@ -181,30 +152,3 @@ async def reset_password_endpoint(body: ResetPasswordRequest, db: AsyncSession =
     await db.commit()
 
     return {"message": "Password updated successfully."}
-
-
-@router.post("/verify-email", response_model=UserOut)
-async def verify_email(
-    body: VerifyEmailRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if current_user.email_verified:
-        return current_user
-
-    if not current_user.verification_code or not current_user.verification_code_expires:
-        raise HTTPException(400, "No verification code requested. Please request a new code.")
-
-    if datetime.utcnow() > current_user.verification_code_expires:
-        raise HTTPException(400, "Verification code has expired. Please request a new code.")
-
-    if body.code.strip() != current_user.verification_code:
-        raise HTTPException(400, "Invalid verification code")
-
-    current_user.email_verified = True
-    current_user.verification_code = None
-    current_user.verification_code_expires = None
-    await db.commit()
-    await db.refresh(current_user)
-
-    return current_user

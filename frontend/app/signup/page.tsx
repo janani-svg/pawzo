@@ -56,7 +56,8 @@ export default function SignupPage() {
       }
       return;
     }
-    router.push("/verify");
+    const onboarded = localStorage.getItem("pawzo:onboarded");
+    router.push(onboarded ? "/dashboard" : "/onboarding");
   }
 
   return (

@@ -61,26 +61,6 @@ def _smtp_send(msg: EmailMessage) -> None:
         raise
 
 
-def send_verification_email(to_email: str, code: str) -> None:
-    subject = "Your Pawzo verification code"
-    body = (
-        f"Hi there! 🐾\n\n"
-        f"Your Pawzo email verification code is:\n\n"
-        f"    {code}\n\n"
-        f"It expires in 10 minutes. If you didn't request this, ignore this email.\n\n"
-        f"— The Pawzo team"
-    )
-    if _send_via_sendgrid(to_email, subject, body):
-        return
-    smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"]    = smtp_from
-    msg["To"]      = to_email
-    msg.set_content(body)
-    _smtp_send(msg)
-
-
 def send_reset_email(to_email: str, reset_link: str) -> None:
     subject = "Reset your Pawzo password"
     body = (

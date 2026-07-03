@@ -21,10 +21,6 @@ class User(Base):
     created_at            = Column(DateTime, default=datetime.utcnow)
     deletion_requested_at = Column(DateTime, nullable=True)
 
-    email_verified            = Column(Boolean, default=False, nullable=False)
-    verification_code         = Column(String, nullable=True)
-    verification_code_expires = Column(DateTime, nullable=True)
-
     password_reset_token         = Column(String, nullable=True)
     password_reset_token_expires = Column(DateTime, nullable=True)
 

@@ -22,7 +22,6 @@ class UserOut(BaseModel):
     name: str
     username: str
     email: str
-    email_verified: bool = False
     photo_url: str = ""
     created_at: datetime
 
@@ -37,10 +36,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserOut
-
-
-class VerifyEmailRequest(BaseModel):
-    code: str
 
 
 class ForgotPasswordRequest(BaseModel):
