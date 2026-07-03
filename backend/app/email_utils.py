@@ -30,28 +30,6 @@ def _send_via_sendgrid(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
-def _send_via_resend(to_email: str, subject: str, body: str) -> bool:
-    api_key = os.getenv("RESEND_API_KEY", "")
-    if not api_key:
-        return False
-    try:
-        import resend
-        resend.api_key = api_key
-        from_email = os.getenv("RESEND_FROM", "Pawzo <onboarding@resend.dev>")
-        resend.Emails.send({
-            "from": from_email,
-            "to": [to_email],
-            "subject": subject,
-            "text": body,
-        })
-        print(f"[pawzo] Email sent via Resend to {to_email}")
-        return True
-    except Exception as e:
-        logger.error("Resend failed: %s", e)
-        print(f"[pawzo] Resend ERROR: {e}")
-        return False
-
-
 def _smtp_send(msg: EmailMessage) -> None:
     smtp_host     = os.getenv("SMTP_HOST", "")
     smtp_port     = int(os.getenv("SMTP_PORT", "587"))
@@ -94,8 +72,6 @@ def send_verification_email(to_email: str, code: str) -> None:
     )
     if _send_via_sendgrid(to_email, subject, body):
         return
-    if _send_via_resend(to_email, subject, body):
-        return
     smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -116,8 +92,6 @@ def send_reset_email(to_email: str, reset_link: str) -> None:
         f"— The Pawzo team"
     )
     if _send_via_sendgrid(to_email, subject, body):
-        return
-    if _send_via_resend(to_email, subject, body):
         return
     smtp_from = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@pawzo.app"))
     msg = EmailMessage()
