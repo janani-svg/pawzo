@@ -84,8 +84,16 @@ def home():
     return {"message": "Pawzo API is running"}
 
 @app.get("/push-status")
-def push_status():
-    return {"push_available": _push_available, "error": _push_err_msg}
+async def push_status():
+    info = {"push_available": _push_available, "error": _push_err_msg}
+    if _push_available:
+        from app.db.database import SessionLocal
+        from app.models.models import PushSubscription
+        from sqlalchemy import select, func
+        async with SessionLocal() as db:
+            count = (await db.execute(select(func.count()).select_from(PushSubscription))).scalar()
+            info["total_subscriptions_in_db"] = count
+    return info
 
 @app.get("/debug-routes")
 def debug_routes():
