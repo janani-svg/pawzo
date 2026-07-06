@@ -20,8 +20,20 @@ except Exception as _push_err:
     _push_available = False
 
 
+def _run_migrations():
+    import subprocess, sys, os
+    alembic_cfg = os.path.join(os.path.dirname(__file__), "alembic.ini")
+    if os.path.exists(alembic_cfg):
+        try:
+            subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, cwd=os.path.dirname(__file__))
+            print("[pawzo] Alembic migrations applied.")
+        except Exception as e:
+            print(f"[pawzo] Alembic migration warning: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _run_migrations()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     scheduler = None
