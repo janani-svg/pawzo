@@ -80,7 +80,7 @@ if push_router:
     app.include_router(push_router.router, prefix="/push", tags=["push"])
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def home():
     return {"message": "Pawzo API is running"}
 
