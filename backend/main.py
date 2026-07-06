@@ -102,9 +102,12 @@ async def push_status(test: bool = False):
                         ok = send_push(s.endpoint, s.p256dh, s.auth, "🐾 Pawzo Test", "If you see this, push works!", "/dashboard")
                         results.append({"ok": ok, "endpoint": s.endpoint[:50]})
                         print(f"[push-test] sent to {s.endpoint[:50]} ok={ok}")
+                        if not ok:
+                            await db.delete(s)
                     except Exception as e:
                         results.append({"ok": False, "error": str(e), "endpoint": s.endpoint[:50]})
                         print(f"[push-test] ERROR {e}")
+                await db.commit()
                 info["test_results"] = results
     return info
 

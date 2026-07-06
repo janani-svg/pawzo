@@ -24,10 +24,22 @@ def send_push(endpoint: str, p256dh: str, auth: str, title: str, body: str, url:
         )
         return True
     except WebPushException as ex:
-        status = ex.response.status_code if ex.response else None
+        # pywebpush 2.x may leave ex.response=None; parse status from message
+        status = None
+        if ex.response is not None:
+            try:
+                status = ex.response.status_code
+            except Exception:
+                pass
+        if status is None:
+            msg = str(ex)
+            if "410" in msg or "Gone" in msg:
+                status = 410
+            elif "404" in msg or "Not Found" in msg:
+                status = 404
+        print(f"[push] WebPush failed status={status}: {ex}")
         if status in (404, 410):
             return False  # subscription gone — caller should delete it
-        log.error("WebPush failed (status=%s): %s", status, ex)
         return True
     except Exception as ex:
         log.error("WebPush unexpected error: %s", ex)
