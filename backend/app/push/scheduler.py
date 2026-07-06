@@ -69,6 +69,7 @@ async def check_meal_reminders():
             .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
         )
         rows = result.all()
+        log.info("[scheduler] meal_reminders: found %d meal+subscription rows", len(rows))
 
         for meal, pet, sub, tz_name in rows:
             try:
@@ -80,6 +81,7 @@ async def check_meal_reminders():
             current_time = now_local.strftime("%H:%M")
             today = str(now_local.date())
 
+            log.info("[scheduler] meal '%s' time=%s current_time=%s tz=%s", meal.name, meal.time, current_time, tz_name)
             if meal.time != current_time:
                 continue
 
