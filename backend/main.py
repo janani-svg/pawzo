@@ -9,13 +9,16 @@ from app.db.database import engine, Base
 from app.models import models  # ensure models are registered before create_all
 from app.routers import auth, pets, meals, health, growth, expenses, memories, calendar, settings, chat, documents, alerts, environment
 
+_push_err_msg = None
 try:
     from app.routers import push as push_router
     from app.push.scheduler import create_scheduler
     _push_available = True
+    print("[pawzo] Push module loaded OK")
 except Exception as _push_err:
-    import logging as _log
-    _log.getLogger(__name__).warning("Push/scheduler not available: %s", _push_err)
+    import traceback as _tb
+    _push_err_msg = _tb.format_exc()
+    print(f"[pawzo] Push/scheduler NOT available:\n{_push_err_msg}")
     push_router = None
     _push_available = False
 
@@ -79,6 +82,10 @@ if push_router:
 @app.get("/")
 def home():
     return {"message": "Pawzo API is running"}
+
+@app.get("/push-status")
+def push_status():
+    return {"push_available": _push_available, "error": _push_err_msg}
 
 @app.get("/debug-routes")
 def debug_routes():
