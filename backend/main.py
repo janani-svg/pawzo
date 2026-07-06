@@ -44,9 +44,10 @@ async def lifespan(app: FastAPI):
         try:
             scheduler = create_scheduler()
             scheduler.start()
+            print("[pawzo] Scheduler started OK")
         except Exception as e:
-            import logging as _log
-            _log.getLogger(__name__).warning("Scheduler failed to start: %s", e)
+            import traceback
+            print(f"[pawzo] Scheduler FAILED to start: {e}\n{traceback.format_exc()}")
     yield
     if scheduler:
         scheduler.shutdown(wait=False)
