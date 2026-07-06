@@ -13,22 +13,29 @@ export async function subscribeToPush(token: string): Promise<void> {
 
   try {
     // Fetch VAPID public key from backend
+    console.log("[push] fetching VAPID key from", `${API}/push/vapid-public-key`);
     const res = await fetch(`${API}/push/vapid-public-key`);
-    if (!res.ok) return;
+    if (!res.ok) { console.warn("[push] VAPID key fetch failed:", res.status); return; }
     const { key } = await res.json() as { key: string };
+    console.log("[push] got VAPID key, length:", key.length);
 
     const reg = await navigator.serviceWorker.ready;
+    console.log("[push] service worker ready:", reg.active?.state);
     let sub   = await reg.pushManager.getSubscription();
+    console.log("[push] existing subscription:", sub ? "yes" : "none");
 
     if (!sub) {
+      console.log("[push] subscribing to push...");
       sub = await reg.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlB64ToUint8Array(key) as BufferSource,
       });
+      console.log("[push] subscribed:", sub.endpoint.slice(0, 60));
     }
 
     // Register with backend (upsert)
-    await fetch(`${API}/push/subscribe`, {
+    console.log("[push] sending subscription to backend...");
+    const saveRes = await fetch(`${API}/push/subscribe`, {
       method:  "POST",
       headers: {
         "Content-Type":  "application/json",
@@ -36,6 +43,7 @@ export async function subscribeToPush(token: string): Promise<void> {
       },
       body: JSON.stringify(sub.toJSON()),
     });
+    console.log("[push] backend subscribe response:", saveRes.status);
   } catch (err) {
     console.warn("[push] subscribe failed:", err);
   }
