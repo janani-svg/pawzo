@@ -83,6 +83,20 @@ if push_router:
 def home():
     return {"message": "Pawzo API is running"}
 
+@app.get("/push-clear-all")
+async def push_clear_all():
+    """Debug: delete all push subscriptions so fresh ones can be created."""
+    if _push_available:
+        from app.db.database import SessionLocal
+        from app.models.models import PushSubscription
+        from sqlalchemy import delete
+        async with SessionLocal() as db:
+            result = await db.execute(delete(PushSubscription))
+            await db.commit()
+            return {"deleted": result.rowcount}
+    return {"error": "push not available"}
+
+
 @app.get("/push-status")
 async def push_status(test: bool = False):
     info = {"push_available": _push_available, "error": _push_err_msg}
