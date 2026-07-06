@@ -57,52 +57,52 @@ async def _delete_stale(db: AsyncSession, sub: PushSubscription):
 
 async def check_meal_reminders():
     """Every minute: for each user, compare meal times in their local timezone."""
+    print("[scheduler] tick")
     import zoneinfo
-    from datetime import timezone, timedelta
-
-    async with SessionLocal() as db:
-        # Fetch all (meal, pet, subscription, user_timezone) in one query
-        result = await db.execute(
-            select(Meal, Pet, PushSubscription, UserSettings.timezone)
-            .join(Pet, Meal.pet_id == Pet.id)
-            .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
-            .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
-        )
-        rows = result.all()
-        print(f"[scheduler] meal_reminders: found {len(rows)} meal+subscription rows")
-
-        for meal, pet, sub, tz_name in rows:
-            try:
-                tz = zoneinfo.ZoneInfo(tz_name or "Asia/Kolkata")
-            except Exception:
-                tz = zoneinfo.ZoneInfo("Asia/Kolkata")
-
-            now_local = datetime.now(tz)
-            current_time = now_local.strftime("%H:%M")
-            today = str(now_local.date())
-
-            print(f"[scheduler] meal='{meal.name}' meal.time='{meal.time}' current='{current_time}' tz='{tz_name}'")
-
-            if meal.time != current_time:
-                continue
-
-            # Check if already fed today
-            fed = await db.execute(
-                select(MealLog.id).where(
-                    MealLog.meal_id == meal.id,
-                    MealLog.date == today,
-                    MealLog.done == True,
-                )
+    try:
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(Meal, Pet, PushSubscription, UserSettings.timezone)
+                .join(Pet, Meal.pet_id == Pet.id)
+                .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
+                .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
             )
-            if fed.first():
-                continue
+            rows = result.all()
+            print(f"[scheduler] meal_reminders: found {len(rows)} rows")
 
-            t, b = _pick(MEAL_MSGS, pet=pet.name, meal=meal.name)
-            print(f"[scheduler] SENDING push for '{meal.name}' pet='{pet.name}'")
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
-            print(f"[scheduler] push sent ok={ok}")
-            if not ok:
-                await _delete_stale(db, sub)
+            for meal, pet, sub, tz_name in rows:
+                try:
+                    tz = zoneinfo.ZoneInfo(tz_name or "Asia/Kolkata")
+                except Exception:
+                    tz = zoneinfo.ZoneInfo("Asia/Kolkata")
+
+                now_local = datetime.now(tz)
+                current_time = now_local.strftime("%H:%M")
+                today = str(now_local.date())
+
+                print(f"[scheduler] meal='{meal.name}' stored='{meal.time}' now='{current_time}' tz='{tz_name}'")
+
+                if meal.time != current_time:
+                    continue
+
+                fed = await db.execute(
+                    select(MealLog.id).where(
+                        MealLog.meal_id == meal.id,
+                        MealLog.date == today,
+                        MealLog.done == True,
+                    )
+                )
+                if fed.first():
+                    continue
+
+                t, b = _pick(MEAL_MSGS, pet=pet.name, meal=meal.name)
+                print(f"[scheduler] SENDING push for '{meal.name}' pet='{pet.name}'")
+                ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
+                print(f"[scheduler] push sent ok={ok}")
+                if not ok:
+                    await _delete_stale(db, sub)
+    except Exception as e:
+        print(f"[scheduler] ERROR in check_meal_reminders: {e}")
 
 
 async def check_daily_alerts():
