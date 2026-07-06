@@ -20,7 +20,11 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
   if (res.status === 204) return null as T;
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail ?? "Request failed");
+  if (!res.ok) {
+    const err = new Error(data.detail ?? "Request failed") as Error & { status: number };
+    err.status = res.status;
+    throw err;
+  }
   return data as T;
 }
 
