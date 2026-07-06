@@ -57,8 +57,11 @@ async def _delete_stale(db: AsyncSession, sub: PushSubscription):
 
 async def check_meal_reminders():
     """Every minute: find meals whose time == now and haven't been marked done → push."""
-    current_time = datetime.now().strftime("%H:%M")
-    today = str(date_type.today())
+    from datetime import timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(IST)
+    current_time = now_ist.strftime("%H:%M")
+    today = str(now_ist.date())
 
     async with SessionLocal() as db:
         # Single JOIN query: meals due now + owner's push subscriptions
@@ -86,8 +89,10 @@ async def check_meal_reminders():
 
 
 async def check_daily_alerts():
-    """Daily at 9 AM: vaccinations due today + pets with no meals configured."""
-    today = str(date_type.today())
+    """Daily at 9 AM IST: vaccinations due today + pets with no meals configured."""
+    from datetime import timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    today = str(datetime.now(IST).date())
 
     async with SessionLocal() as db:
         # Vaccinations due today
@@ -117,8 +122,10 @@ async def check_daily_alerts():
 
 
 async def check_evening_unfed():
-    """Daily at 8 PM: one push per user if any meal was not logged done today."""
-    today = str(date_type.today())
+    """Daily at 8 PM IST: one push per user if any meal was not logged done today."""
+    from datetime import timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    today = str(datetime.now(IST).date())
 
     async with SessionLocal() as db:
         fed_today = (
@@ -152,6 +159,6 @@ async def check_evening_unfed():
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_meal_reminders, IntervalTrigger(minutes=1), id="meal_reminders",  replace_existing=True, misfire_grace_time=30)
-    scheduler.add_job(check_daily_alerts,   CronTrigger(hour=9,  minute=0), id="daily_alerts",   replace_existing=True)
-    scheduler.add_job(check_evening_unfed,  CronTrigger(hour=20, minute=0), id="evening_unfed",  replace_existing=True)
+    scheduler.add_job(check_daily_alerts,   CronTrigger(hour=3,  minute=30), id="daily_alerts",   replace_existing=True)  # 9 AM IST
+    scheduler.add_job(check_evening_unfed,  CronTrigger(hour=14, minute=30), id="evening_unfed",  replace_existing=True)  # 8 PM IST
     return scheduler
