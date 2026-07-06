@@ -31,7 +31,7 @@ export type CalendarEvent = { id: string; petId: string; title: string; date: st
 export type EnvTask     = { id: string; petId: string; name: string; frequency: string; intervalDays: number; lastCompleted: string; nextDue: string };
 export type Vet         = { name: string; clinic: string; phone: string; altPhone: string; address: string } | null;
 export type Document    = { id: string; name: string; category: string; fileData: string; mimeType: string; uploadedAt: string };
-export type Settings    = { theme: "light" | "dark" | "auto"; push: boolean; email: boolean; sound: boolean; units: "metric" | "imperial"; currency: string; language: string };
+export type Settings    = { theme: "light" | "dark" | "auto"; push: boolean; email: boolean; sound: boolean; units: "metric" | "imperial"; currency: string; language: string; timezone: string };
 
 export type State = {
   accounts: Account[];         // kept for type compat, not used with API
@@ -66,7 +66,7 @@ const EMPTY: State = {
   accounts: [], currentUserId: null, currentUserName: "", currentUserUsername: "", currentUserEmail: "", currentUserPhoto: "", emailVerified: false, selectedPetId: null,
   pets: [], meals: [], mealLogs: [], vaccinations: [], weights: [], health: [],
   expenses: [], milestones: [], memories: [], events: [], environment: [], vet: null, documents: [],
-  settings: { theme: "light", push: true, email: false, sound: true, units: "metric", currency: "USD", language: "English" },
+  settings: { theme: "light", push: true, email: false, sound: true, units: "metric", currency: "USD", language: "English", timezone: "Asia/Kolkata" },
   activity: [], streakCount: 0, streakBroken: false,
   pastAlerts: [],
 };
@@ -94,7 +94,7 @@ const toEvent       = (e: ApiCalendarEvent): CalendarEvent => ({ id: e.id, petId
 const toEnvTask     = (t: ApiEnvironmentTask): EnvTask => ({ id: t.id, petId: t.pet_id, name: t.name, frequency: t.frequency ?? "Weekly", intervalDays: t.interval_days ?? 7, lastCompleted: t.last_completed ?? "", nextDue: t.next_due ?? "" });
 const toVet         = (v: ApiVet | null): Vet => v ? { name: v.name, clinic: v.clinic ?? "", phone: v.phone ?? "", altPhone: v.alt_phone ?? "", address: v.address ?? "" } : null;
 const toDocument    = (d: ApiDocument): Document => ({ id: d.id, name: d.name, category: d.category, fileData: d.file_data, mimeType: d.mime_type, uploadedAt: d.uploaded_at });
-const toSettings    = (s: ApiSettings): Settings => ({ theme: (s.theme as Settings["theme"]) ?? "light", push: s.push, email: s.email, sound: s.sound, units: (s.units as Settings["units"]) ?? "metric", currency: s.currency ?? "USD", language: s.language ?? "English" });
+const toSettings    = (s: ApiSettings): Settings => ({ theme: (s.theme as Settings["theme"]) ?? "light", push: s.push, email: s.email, sound: s.sound, units: (s.units as Settings["units"]) ?? "metric", currency: s.currency ?? "USD", language: s.language ?? "English", timezone: s.timezone ?? "Asia/Kolkata" });
 const toAlertRecord = (r: ApiAlertRecord): Alert => ({
   id: r.alert_key,
   emoji: r.emoji,
@@ -339,6 +339,8 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         const data = await loadAll(res.user.id);
         mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified: res.user.email_verified ?? false }));
         authApi.sendVerification().catch(() => {});
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) userApi.updateSettings({ timezone: tz }).catch(() => {});
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };
@@ -351,6 +353,8 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("pawzo:token", res.access_token);
         const data = await loadAll(res.user.id);
         mutate((s) => ({ ...s, ...data, currentUserName: res.user.name, currentUserUsername: res.user.username, currentUserEmail: res.user.email, emailVerified: res.user.email_verified ?? false }));
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) userApi.updateSettings({ timezone: tz }).catch(() => {});
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: (e as Error).message };

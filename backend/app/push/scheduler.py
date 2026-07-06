@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, not_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import SessionLocal
-from app.models.models import Meal, MealLog, Pet, PushSubscription, Vaccination
+from app.models.models import Meal, MealLog, Pet, PushSubscription, UserSettings, Vaccination
 from app.push.sender import send_push
 
 log = logging.getLogger(__name__)
@@ -56,32 +56,44 @@ async def _delete_stale(db: AsyncSession, sub: PushSubscription):
 # Scheduler jobs  ─────────────────────────────────────────────────────────────
 
 async def check_meal_reminders():
-    """Every minute: find meals whose time == now and haven't been marked done → push."""
+    """Every minute: for each user, compare meal times in their local timezone."""
+    import zoneinfo
     from datetime import timezone, timedelta
-    IST = timezone(timedelta(hours=5, minutes=30))
-    now_ist = datetime.now(IST)
-    current_time = now_ist.strftime("%H:%M")
-    today = str(now_ist.date())
 
     async with SessionLocal() as db:
-        # Single JOIN query: meals due now + owner's push subscriptions
-        # where no done meal_log exists for today
-        fed_today = (
-            select(MealLog.id)
-            .where(
-                MealLog.meal_id == Meal.id,
-                MealLog.date == today,
-                MealLog.done == True,
-            )
-        )
+        # Fetch all (meal, pet, subscription, user_timezone) in one query
         result = await db.execute(
-            select(Meal, Pet, PushSubscription)
+            select(Meal, Pet, PushSubscription, UserSettings.timezone)
             .join(Pet, Meal.pet_id == Pet.id)
             .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
-            .where(Meal.time == current_time)
-            .where(not_(exists(fed_today)))
+            .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
         )
-        for meal, pet, sub in result.all():
+        rows = result.all()
+
+        for meal, pet, sub, tz_name in rows:
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name or "Asia/Kolkata")
+            except Exception:
+                tz = zoneinfo.ZoneInfo("Asia/Kolkata")
+
+            now_local = datetime.now(tz)
+            current_time = now_local.strftime("%H:%M")
+            today = str(now_local.date())
+
+            if meal.time != current_time:
+                continue
+
+            # Check if already fed today
+            fed = await db.execute(
+                select(MealLog.id).where(
+                    MealLog.meal_id == meal.id,
+                    MealLog.date == today,
+                    MealLog.done == True,
+                )
+            )
+            if fed.first():
+                continue
+
             t, b = _pick(MEAL_MSGS, pet=pet.name, meal=meal.name)
             ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
             if not ok:
@@ -89,62 +101,85 @@ async def check_meal_reminders():
 
 
 async def check_daily_alerts():
-    """Daily at 9 AM IST: vaccinations due today + pets with no meals configured."""
-    from datetime import timezone, timedelta
-    IST = timezone(timedelta(hours=5, minutes=30))
-    today = str(datetime.now(IST).date())
+    """Every hour: fire for users whose local time is 9 AM — vaccinations due + no-meal pets."""
+    import zoneinfo
 
     async with SessionLocal() as db:
-        # Vaccinations due today
-        vacc_rows = await db.execute(
-            select(Vaccination, Pet, PushSubscription)
-            .join(Pet, Vaccination.pet_id == Pet.id)
+        rows = await db.execute(
+            select(Pet, PushSubscription, UserSettings.timezone)
             .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
-            .where(Vaccination.next_due == today)
+            .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
         )
-        for vacc, pet, sub in vacc_rows.all():
-            t, b = _pick(VACC_MSGS, pet=pet.name, vacc=vacc.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/health?petId={pet.id}")
-            if not ok:
-                await _delete_stale(db, sub)
+        seen_subs: set[str] = set()
+        for pet, sub, tz_name in rows.all():
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name or "Asia/Kolkata")
+            except Exception:
+                tz = zoneinfo.ZoneInfo("Asia/Kolkata")
 
-        # Pets that have no meals at all — remind owner to set up a schedule
-        no_meal_sub = (
-            select(Pet, PushSubscription)
-            .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
-            .where(not_(exists(select(Meal.id).where(Meal.pet_id == Pet.id))))
-        )
-        for pet, sub in (await db.execute(no_meal_sub)).all():
-            t, b = _pick(NO_MEAL_MSGS, pet=pet.name)
-            ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
-            if not ok:
-                await _delete_stale(db, sub)
+            now_local = datetime.now(tz)
+            if now_local.hour != 9:
+                continue
+
+            today = str(now_local.date())
+
+            # Vaccinations due today for this pet
+            vacc_rows = await db.execute(
+                select(Vaccination)
+                .where(Vaccination.pet_id == pet.id, Vaccination.next_due == today)
+            )
+            for (vacc,) in vacc_rows.all():
+                t, b = _pick(VACC_MSGS, pet=pet.name, vacc=vacc.name)
+                ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/health?petId={pet.id}")
+                if not ok:
+                    await _delete_stale(db, sub)
+                    break
+
+            # No meals configured
+            if sub.endpoint not in seen_subs:
+                has_meal = await db.execute(select(Meal.id).where(Meal.pet_id == pet.id))
+                if not has_meal.first():
+                    seen_subs.add(sub.endpoint)
+                    t, b = _pick(NO_MEAL_MSGS, pet=pet.name)
+                    ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
+                    if not ok:
+                        await _delete_stale(db, sub)
 
 
 async def check_evening_unfed():
-    """Daily at 8 PM IST: one push per user if any meal was not logged done today."""
-    from datetime import timezone, timedelta
-    IST = timezone(timedelta(hours=5, minutes=30))
-    today = str(datetime.now(IST).date())
+    """Every hour: fire for users whose local time is 8 PM — remind about unfed meals today."""
+    import zoneinfo
 
     async with SessionLocal() as db:
-        fed_today = (
-            select(MealLog.id)
-            .where(
-                MealLog.meal_id == Meal.id,
-                MealLog.date == today,
-                MealLog.done == True,
-            )
-        )
         result = await db.execute(
-            select(Meal, Pet, PushSubscription)
+            select(Meal, Pet, PushSubscription, UserSettings.timezone)
             .join(Pet, Meal.pet_id == Pet.id)
             .join(PushSubscription, PushSubscription.user_id == Pet.owner_id)
-            .where(not_(exists(fed_today)))
+            .outerjoin(UserSettings, UserSettings.user_id == Pet.owner_id)
         )
-        # One notification per subscription endpoint (avoid spamming per meal)
         seen: set[str] = set()
-        for meal, pet, sub in result.all():
+        for meal, pet, sub, tz_name in result.all():
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name or "Asia/Kolkata")
+            except Exception:
+                tz = zoneinfo.ZoneInfo("Asia/Kolkata")
+
+            now_local = datetime.now(tz)
+            if now_local.hour != 20:
+                continue
+
+            today = str(now_local.date())
+
+            fed = await db.execute(
+                select(MealLog.id).where(
+                    MealLog.meal_id == meal.id,
+                    MealLog.date == today,
+                    MealLog.done == True,
+                )
+            )
+            if fed.first():
+                continue
+
             if sub.endpoint in seen:
                 continue
             seen.add(sub.endpoint)
@@ -158,7 +193,7 @@ async def check_evening_unfed():
 
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_meal_reminders, IntervalTrigger(minutes=1), id="meal_reminders",  replace_existing=True, misfire_grace_time=30)
-    scheduler.add_job(check_daily_alerts,   CronTrigger(hour=3,  minute=30), id="daily_alerts",   replace_existing=True)  # 9 AM IST
-    scheduler.add_job(check_evening_unfed,  CronTrigger(hour=14, minute=30), id="evening_unfed",  replace_existing=True)  # 8 PM IST
+    scheduler.add_job(check_meal_reminders, IntervalTrigger(minutes=1),  id="meal_reminders", replace_existing=True, misfire_grace_time=30)
+    scheduler.add_job(check_daily_alerts,   IntervalTrigger(hours=1),    id="daily_alerts",   replace_existing=True, misfire_grace_time=120)
+    scheduler.add_job(check_evening_unfed,  IntervalTrigger(hours=1),    id="evening_unfed",  replace_existing=True, misfire_grace_time=120)
     return scheduler

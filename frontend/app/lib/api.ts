@@ -253,7 +253,7 @@ export interface ApiVet {
 }
 export interface ApiSettings {
   theme: string; push: boolean; email: boolean; sound: boolean;
-  units: string; currency: string; language: string;
+  units: string; currency: string; language: string; timezone: string;
 }
 export interface ApiChatMessage {
   id: string; user_id: string; pet_id?: string | null;

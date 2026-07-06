@@ -432,6 +432,7 @@ class SettingsUpdate(BaseModel):
     units: Optional[Literal["metric", "imperial"]] = None
     currency: Optional[str] = None
     language: Optional[str] = None
+    timezone: Optional[str] = None
 
 
 class SettingsOut(BaseModel):
@@ -442,6 +443,7 @@ class SettingsOut(BaseModel):
     units: str
     currency: str
     language: str
+    timezone: str = "Asia/Kolkata"
 
     model_config = {"from_attributes": True}
 

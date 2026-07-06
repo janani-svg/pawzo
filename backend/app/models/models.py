@@ -234,6 +234,7 @@ class UserSettings(Base):
     units    = Column(String, default="metric")
     currency = Column(String, default="USD")
     language = Column(String, default="English")
+    timezone = Column(String, default="Asia/Kolkata")
 
     user = relationship("User", back_populates="settings")
 
