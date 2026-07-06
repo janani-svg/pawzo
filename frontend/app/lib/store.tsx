@@ -317,8 +317,11 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
         setReady(true);
         checkStreakMilestone(data.streakCount ?? 0, data.pets ?? []);
       }))
-      .catch(() => {
-        localStorage.removeItem("pawzo:token");
+      .catch((err: unknown) => {
+        // Only clear token on 401 (invalid/expired). Network errors (Render cold
+        // start, offline) should keep the token so the user stays logged in.
+        const status = (err as { status?: number })?.status;
+        if (status === 401) localStorage.removeItem("pawzo:token");
         setReady(true);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
