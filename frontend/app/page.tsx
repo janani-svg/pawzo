@@ -10,21 +10,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { T, PrimaryButton, IconPaw } from "./components/pawzo-ui";
 
-const SEEN_LANDING_KEY = "pawzo:seenLanding";
-
 export default function Landing() {
   const router = useRouter();
   const [showSplash, setShowSplash] = useState<boolean | null>(null);
   const [walked, setWalked] = useState(false);
   const [showCta, setShowCta] = useState(false);
 
-  // First launch ever: play the splash. Every launch after that: skip straight to the dashboard.
+  // Logged in → skip straight to the dashboard. Not logged in → always play the splash.
   useEffect(() => {
-    if (localStorage.getItem(SEEN_LANDING_KEY)) {
+    if (localStorage.getItem("pawzo:token")) {
       setShowSplash(false);
       router.replace("/dashboard");
     } else {
-      localStorage.setItem(SEEN_LANDING_KEY, "1");
       setShowSplash(true);
     }
   }, [router]);
