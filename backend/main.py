@@ -84,7 +84,7 @@ def home():
     return {"message": "Pawzo API is running"}
 
 @app.get("/push-status")
-async def push_status():
+async def push_status(test: bool = False):
     info = {"push_available": _push_available, "error": _push_err_msg}
     if _push_available:
         from app.db.database import SessionLocal
@@ -93,6 +93,19 @@ async def push_status():
         async with SessionLocal() as db:
             count = (await db.execute(select(func.count()).select_from(PushSubscription))).scalar()
             info["total_subscriptions_in_db"] = count
+            if test:
+                from app.push.sender import send_push
+                subs = (await db.execute(select(PushSubscription))).scalars().all()
+                results = []
+                for s in subs:
+                    try:
+                        ok = send_push(s.endpoint, s.p256dh, s.auth, "🐾 Pawzo Test", "If you see this, push works!", "/dashboard")
+                        results.append({"ok": ok, "endpoint": s.endpoint[:50]})
+                        print(f"[push-test] sent to {s.endpoint[:50]} ok={ok}")
+                    except Exception as e:
+                        results.append({"ok": False, "error": str(e), "endpoint": s.endpoint[:50]})
+                        print(f"[push-test] ERROR {e}")
+                info["test_results"] = results
     return info
 
 @app.get("/debug-routes")
