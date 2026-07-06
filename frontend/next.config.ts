@@ -6,6 +6,7 @@ const nextConfig = {
       { source: '/auth/:path*', destination: 'https://pawzo-ajf9.onrender.com/auth/:path*' },
       { source: '/pets/:path*', destination: 'https://pawzo-ajf9.onrender.com/pets/:path*' },
       { source: '/user/:path*', destination: 'https://pawzo-ajf9.onrender.com/user/:path*' },
+      { source: '/push/:path*', destination: 'https://pawzo-ajf9.onrender.com/push/:path*' },
     ];
   },
 };
