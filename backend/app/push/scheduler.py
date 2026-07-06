@@ -81,6 +81,8 @@ async def check_meal_reminders():
             current_time = now_local.strftime("%H:%M")
             today = str(now_local.date())
 
+            print(f"[scheduler] meal='{meal.name}' meal.time='{meal.time}' current='{current_time}' tz='{tz_name}'")
+
             if meal.time != current_time:
                 continue
 
@@ -96,7 +98,9 @@ async def check_meal_reminders():
                 continue
 
             t, b = _pick(MEAL_MSGS, pet=pet.name, meal=meal.name)
+            print(f"[scheduler] SENDING push for '{meal.name}' pet='{pet.name}'")
             ok = send_push(sub.endpoint, sub.p256dh, sub.auth, t, b, f"/pet-profile/food?petId={pet.id}")
+            print(f"[scheduler] push sent ok={ok}")
             if not ok:
                 await _delete_stale(db, sub)
 
