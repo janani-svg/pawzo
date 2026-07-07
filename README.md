@@ -189,7 +189,7 @@ Contributions, issues, and feature requests are welcome! Feel free to open an is
 
 ## 📄 License
 
-This project is currently unlicensed. Add a license file (e.g. MIT) if you'd like to define usage terms.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 ---
 
