@@ -33,7 +33,6 @@ PAWZO is more than a pet tracking app—it's a delightful companion that celebra
 - **Joy** - Celebrating moments with your furry friend
 - **Trust** - You're caring for something precious
 - **Energy** - Happy, playful, alive
-- **Connection** - Bringing co-parents closer through shared moments
 
 ### 1.2 Core Design Aesthetic
 ```
@@ -1201,9 +1200,9 @@ OTHER: Sage Green (#92AA83) background
 </Section>
 ```
 
-#### Co-Parent Widget Pattern
+#### Pet Status Widget Pattern
 ```jsx
-<Widget title="Live Pet Status">
+<Widget title="Pet Status">
   <PetStatus pet={pet} />
   <LastUpdate time={lastUpdate} />
   <Button size="small">View Full Profile</Button>
