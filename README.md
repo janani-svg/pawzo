@@ -189,7 +189,9 @@ Contributions, issues, and feature requests are welcome! Feel free to open an is
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **[PolyForm Strict License 1.0.0](LICENSE)** — © 2026 Janani Sethumadhavan and Deepadharshini V.
+
+You may view and run this software for **noncommercial purposes only**. Copying, modifying, redistributing, or any **commercial use** (selling, merchandising, or profiting from it) is **not permitted**. All rights reserved by the authors. See the [LICENSE](LICENSE) file for full terms.
 
 ---
 
