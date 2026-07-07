@@ -45,11 +45,8 @@ To become the go-to digital companion for pet owners, providing peace of mind th
 - **Expenses** – Record and categorize veterinary and pet care costs
 
 ### 3.4 AI & Emergency Services
-- **AI Assistant** – Intelligent chatbot for pet care advice, Q&A, and symptom guidance
-- **Emergency Services** – Integrated features including:
-  - Nearby Vet Finder with location-based veterinary services
-  - One-Tap Emergency Call functionality
-  - First Aid Guide for immediate pet health guidance
+- **AI Assistant** – Intelligent chatbot (OpenAI-powered) for pet care advice, Q&A, and symptom guidance, with image support and saved conversation history
+- **Emergency Services** – A one-tap call to the owner's saved preferred veterinarian (name, clinic, phone, address). *Note: location-based "nearby vet" discovery and a first-aid guide are not implemented in the current build.*
 
 ### 3.5 Engagement
 - **Push Notifications** – Timely reminders for feeding, medication, appointments, and important pet care events
@@ -68,7 +65,7 @@ Landing Page → Login → User Data → App Tour → Pet Data → Dashboard
 1. **Pet Onboarding:** Add pet profile → Upload avatar → Set health baseline
 2. **Daily Tracking:** Dashboard → Log feeding → Log health observations → Check reminders
 3. **Health Management:** Health tab → View records → Add medication → Schedule appointments
-4. **Emergency Response:** Emergency tab → Find nearby vet → One-Tap Call → Access First Aid Guide
+4. **Emergency Response:** Emergency tab → Preferred vet card → One-Tap Call
 
 ---
 
@@ -190,7 +187,7 @@ Pawzo differentiates through:
 - **Simplicity:** Intuitive interface vs. complex veterinary software
 - **Comprehensiveness:** All-in-one solution covering health, nutrition, and emergency
 - **AI Integration:** Smart insights and guidance for pet care
-- **Emergency Focus:** Quick access to nearby vets and first aid
+- **Emergency Focus:** One-tap access to the owner's preferred vet
 
 ### Target Competitive Advantage
 - Better UX than existing solutions
@@ -223,20 +220,25 @@ Pawzo differentiates through:
 
 | Feature | Priority | Status | Notes |
 |---------|----------|--------|-------|
-| Pet Profiles | P0 | Planning | Pixelated avatar support |
-| Health Dashboard | P0 | Planning | Calendar integration critical |
-| Feeding Tracker | P0 | Planning | Schedule-based reminders |
-| Medication Manager | P0 | Planning | Dosage and frequency tracking |
-| Push Notifications | P0 | Planning | Multi-type notification system |
-| AI Assistant | P1 | Planning | Integration with LLM service |
-| Vet Finder | P1 | Planning | Location services + mapping |
-| Growth Tracking | P1 | Planning | Charts and trend analysis |
-| Expense Tracker | P1 | Planning | Budget and category management |
-| Memory Widget | P2 | Planning | Photo storage and retrieval |
-| First Aid Guide | P1 | Planning | Offline-accessible content |
+| Pet Profiles | P0 | ✅ Built | Multiple pets, avatars, notes |
+| Health Dashboard | P0 | ✅ Built | Calendar + today's schedule |
+| Feeding Tracker | P0 | ✅ Built | Meals + per-day feeding logs |
+| Medication Manager | P0 | ✅ Built | Via health records (kind = medication) |
+| Push Notifications | P0 | ✅ Built | Web Push (VAPID) + scheduler |
+| AI Assistant | P1 | ✅ Built | OpenAI chat with image support |
+| Growth Tracking | P1 | ✅ Built | Weight entries + milestones |
+| Expense Tracker | P1 | ✅ Built | Categories, receipts |
+| Memory Widget | P1 | ✅ Built | Photos, captions, moods, tags |
+| Documents | P1 | ✅ Built | Upload + on-device OCR (Tesseract) |
+| Environment Tasks | P2 | ✅ Built | Recurring habitat/care reminders |
+| Email Verification & Reset | P1 | ✅ Built | SendGrid code/link flows |
+| Emergency (Vet Call) | P1 | ⚠️ Partial | One-tap call to saved vet only |
+| Nearby Vet Finder | P1 | ⛔ Not built | No location/geo discovery |
+| First Aid Guide | P1 | ⛔ Not built | Not in current scope |
+| Google OAuth login | P2 | ⛔ Not built | Email/password + JWT only |
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: June 2026*  
-*Owner: Product Team*
+*Document Version: 2.0 — reconciled with the shipped build*  
+*Last Updated: July 2026*  
+*Status: MVP shipped (Next.js 16 PWA + FastAPI/PostgreSQL). Sections 8–12 below remain forward-looking product vision, not current commitments.*

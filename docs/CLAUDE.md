@@ -40,7 +40,7 @@ All five live in the project's `docs/` folder. **They override anything in your 
 | 4 | Screen Flow | `docs/SCREEN_FLOW.md` | Page tree, navigation, screen structure, states, errors |
 | 5 | Database Schema | `docs/DATABASE_SCHEMA.md` | Tables, fields, enums, relationships, naming |
 
-*(As committed, the filenames are `PAWZO_Project_Context.md`, `DESIGN_SYSTEM.md`, `PAWZO_Typography_Font_Specifications.md`, `screen_flow.md`, `DATABASE_SCHEMA.md`. Same five documents — match by role, not just filename.)*
+*(As committed, the filenames are `PAWZO_Project_Context.md`, `DESIGN_SYSTEM.md`, `PAWZO_Typography_Font_Specifications.md`, `SYSTEM_FLOW.md`, `DATABASE_SCHEMA.md`. Same five documents — match by role, not just filename.)*
 
 **Precedence when they disagree:** for a *visual* detail, `DESIGN_SYSTEM` + `TYPOGRAPHY` win; for *structure/navigation*, `SCREEN_FLOW` wins; for *data shape*, `DATABASE_SCHEMA` wins; for *scope/intent*, `PROJECT_CONTEXT` wins. If still unclear, flag it.
 

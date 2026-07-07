@@ -33,12 +33,10 @@ PAWZO Application Flow Structure:
 ┌─ LANDING PAGE
 │  └─ Welcome Introduction
 │     ├─ Login
-│     ├─ Sign Up (with Google)
-│     └─ Continue as Guest (optional)
+│     └─ Sign Up
 │
 ├─ AUTHENTICATION PHASE
 │  ├─ Email/Password Login
-│  ├─ Google OAuth Login
 │  └─ Sign Up Process
 │
 ├─ ONBOARDING PHASE
@@ -62,7 +60,7 @@ PAWZO Application Flow Structure:
 1. **New User:** Landing → Sign Up → User Data → Permissions → Tour → Dashboard
 2. **Existing User:** Landing → Login → Dashboard
 3. **Pet Owner:** Dashboard → Select Pet → Pet Features (Food, Health, etc.)
-4. **Co-Parent:** Shared Dashboard → View Pet → Limited Access
+4. **AI Help:** Ask AI tab → Ask a question (optionally about a specific pet) → Guidance
 
 ---
 
@@ -103,18 +101,13 @@ WELCOME PAGE (Optional post-landing)
 
 ```
 SIGN UP PAGE
-├─ Two Options:
-│  ├─ Standard Sign Up
-│  │  ├─ Full Name
-│  │  ├─ Username
-│  │  ├─ Email
-│  │  ├─ Create Password
-│  │  ├─ Confirm Password
-│  │  └─ Agree to Terms
-│  │
-│  └─ Google Sign Up
-│     ├─ Email/Username (auto-filled from Google)
-│     └─ Password (auto-generated)
+├─ Fields:
+│  ├─ Full Name
+│  ├─ Username
+│  ├─ Email
+│  ├─ Create Password
+│  ├─ Confirm Password
+│  └─ Agree to Terms
 │
 ├─ Validation:
 │  ├─ Email format validation
@@ -144,19 +137,15 @@ LOGIN PAGE
 │  └─ Password
 │
 ├─ Options:
-│  ├─ "Remember Me" checkbox (optional)
 │  ├─ "Forgot Password" link
 │  └─ "Sign Up" link
-│
-├─ Google Login Option:
-│  └─ "Login with Google" button
 │
 ├─ Success Flow:
 │  ├─ Validate credentials
 │  ├─ Check email verification status
 │  │  ├─ If verified → Dashboard
 │  │  └─ If not verified → Verification Prompt
-│  └─ Create session token
+│  └─ Issue JWT (stored client-side; keeps the user signed in)
 │
 └─ Error Flow:
    ├─ Invalid email/password
@@ -165,34 +154,7 @@ LOGIN PAGE
    └─ Server error
 ```
 
-### 3.2 Google OAuth Flow
-
-```
-GOOGLE OAUTH LOGIN
-├─ Process:
-│  ├─ User clicks "Login with Google"
-│  ├─ Redirects to Google Auth
-│  ├─ User approves permissions
-│  ├─ Google sends back auth token
-│  └─ App creates user session
-│
-├─ Data from Google:
-│  ├─ Email (required)
-│  ├─ Full name (optional)
-│  ├─ Profile picture (optional)
-│  └─ User ID
-│
-├─ New User Path:
-│  ├─ Create new user account
-│  ├─ Email auto-verified
-│  ├─ Auto-generate username from name
-│  └─ → User Data Collection
-│
-└─ Existing User Path:
-   └─ → Dashboard directly
-```
-
-### 3.3 Sign Up Completion
+### 3.2 Sign Up Completion
 
 ```
 USER DATA COLLECTION (Post Sign Up)
@@ -261,7 +223,7 @@ DASHBOARD (Home Hub)
 │  ├─ Photo grid (3-column)
 │  ├─ Filter by pet/date
 │  ├─ Tap for full view
-│  └─ Comment/like options
+│  └─ Add memory (caption, mood, tags)
 │
 └─ Navigation:
    ├─ Tap Pet Card → Pet Profile Page
@@ -418,8 +380,7 @@ PET PROFILE PAGE (After clicking a pet from Dashboard)
 │     └─ "Update Details" button (edit all fields)
 │
 └─ Bottom Actions:
-   ├─ Share Pet Profile
-   ├─ Add to Co-parents
+   ├─ Edit Pet
    └─ Delete Pet (with confirmation)
 ```
 
@@ -930,7 +891,7 @@ DASHBOARD HOME PAGE (Corrected)
 │     ├─ All photos from all pets
 │     ├─ Filter by pet/date
 │     ├─ Tap for full view
-│     └─ Comment/like options
+│     └─ Add memory (caption, mood, tags)
 │
 └─ Navigation:
    ├─ Tap Pet Card → Pet Profile Page (with 6 tabs)
@@ -1171,9 +1132,9 @@ Error Display Patterns:
    │                                                    │
    ├─ Login                    OR    ┌───────────────┬─┴─┬──────────┐
    │  └─ Email/Password              │               │   │          │
-   │     └─ Home Dashboard    OR     │               │   │          │
-   ├─ Google Login                   ▼               ▼   ▼          ▼
-   │  └─ Home Dashboard      OR   [Select Pet]  [Health] [Food] [Emergency]
+   │     └─ Home Dashboard           │               │   │          │
+   │                          OR     ▼               ▼   ▼          ▼
+   │                              [Select Pet]  [Health] [Food] [Emergency]
    └─ Sign Up                         │
       └─ User Data                    ├─ Pet Details
       └─ Permissions                  ├─ Add Pet
@@ -1290,7 +1251,7 @@ Pet Management:
 ├─ Feeding logs logged
 ├─ Medications tracked
 ├─ Memories created
-└─ Co-parents invited
+└─ Documents uploaded
 ```
 
 ---
@@ -1309,7 +1270,6 @@ Home (/)
 ├─ Authentication
 │  ├─ Login (/login)
 │  │  ├─ Email/Password Login
-│  │  ├─ Google OAuth
 │  │  ├─ Forgot Password
 │  │  └─ Sign Up Link
 │  │
@@ -1322,7 +1282,6 @@ Home (/)
 │  │  │  ├─ Confirm Password
 │  │  │  └─ Agree Terms
 │  │  │
-│  │  ├─ Google Sign Up
 │  │  ├─ Email Verification
 │  │  └─ User Data Collection
 │  │
@@ -1417,27 +1376,22 @@ Home (/)
 │     ├─ Photo Grid
 │     ├─ Pet Filter
 │     ├─ Photo Viewer
-│     └─ Comment/Like
+│     └─ Add Memory (caption, mood, tags)
 │
-└─ Emergency & Support
-   ├─ Emergency (/app/emergency)
-   │  ├─ Nearby Vet Finder
-   │  ├─ One-Tap Call
-   │  ├─ First Aid Guide
-   │  └─ Emergency History
-   │
-   └─ Support (/support)
-      ├─ Help Center
-      ├─ Contact Us
-      ├─ FAQ
-      └─ Report Issue
+├─ Emergency (/app/emergency)
+│  ├─ Preferred Vet Card (name, clinic, phone, address)
+│  ├─ One-Tap Call (tel: link)
+│  └─ Add / Edit / Delete Vet
+│
+└─ Legal
+   ├─ Privacy (/privacy)
+   └─ Terms (/terms)
 ```
 
 ---
 
-*Document Version: 1.0*  
-*Converted from: pawzo.mind*  
-*Date: June 2026*  
-*Status: Complete System Flow Documentation*
+*Document Version: 2.0 — reconciled with the shipped build*  
+*Last Updated: July 2026*  
+*Status: Reflects the current Next.js 16 PWA. Email/password auth only (no Google OAuth); emergency = preferred-vet one-tap call.*
 
 **This document provides the complete system flow, user journeys, and application architecture for Pawzo. Use this as the reference for feature development and team coordination.**
