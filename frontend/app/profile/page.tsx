@@ -65,31 +65,28 @@ const MEM_META: Record<number,{ emoji:string; name:string; desc:string }> = {
   100: { emoji:"🌟", name:"100 Memories",  desc:"The ultimate memory keeper" },
 };
 
-function badgeState(value: number, milestone: number, prevMilestone: number, justEarnedMilestone: number | null, earnedSet?: Set<number>): BadgeState {
-  const isEarned = value >= milestone || earnedSet?.has(milestone);
+function badgeState(value: number, milestone: number, prevMilestone: number, justEarnedMilestone: number | null, maxEver?: number): BadgeState {
+  const isEarned = value >= milestone || (maxEver !== undefined && maxEver >= milestone);
   if (isEarned) return milestone === justEarnedMilestone ? "just_earned" : "earned";
-  if (value >= prevMilestone || (earnedSet && prevMilestone > 0 && earnedSet.has(prevMilestone))) return "next";
+  if (value >= prevMilestone || (maxEver !== undefined && prevMilestone > 0 && maxEver >= prevMilestone)) return "next";
   return "locked";
 }
 
 export default function ProfilePage() {
   const { ready, authed } = useRequireAuth();
-  const { state, currentUser, myPets, streak, streakBroken, updateUserPhoto, addDocument, removeDocument, renameDocument } = usePawzo();
+  const { state, currentUser, myPets, streak, streakBroken, maxStreak, updateUserPhoto, addDocument, removeDocument, renameDocument } = usePawzo();
   const [docUploading, setDocUploading] = useState(false);
   const [docSearch, setDocSearch] = useState("");
   const [docDeleteId, setDocDeleteId] = useState<string | null>(null);
   const [docDeleteConfirm, setDocDeleteConfirm] = useState(false);
   const [docRenameId, setDocRenameId] = useState<string | null>(null);
   const [docRenameName, setDocRenameName] = useState("");
-  const [earnedStreakSet, setEarnedStreakSet] = useState<Set<number>>(new Set());
   const [justEarnedStreak, setJustEarnedStreak] = useState<number | null>(null);
   const [justEarnedMem, setJustEarnedMem] = useState<number | null>(null);
   const [justEarnedPet, setJustEarnedPet] = useState<number | null>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Sync localStorage on mount so the dashboard can detect newly-earned badges.
-  // Also set just_earned glow state for badges earned since last profile visit.
   useEffect(() => {
     if (!authed) return;
     const currentPets     = myPets();
@@ -97,13 +94,9 @@ export default function ProfilePage() {
     const pIds            = new Set(currentPets.map((p) => p.id));
     const currentMemCount = state.memories.filter((m) => pIds.has(m.petId)).length;
 
-    // Profile only READS — dashboard is the sole writer of these keys
     const prevStreak = parseInt(localStorage.getItem("pawzo_cel_streak") ?? "0", 10);
     const prevMem    = parseInt(localStorage.getItem("pawzo_cel_mem")    ?? "0", 10);
     const prevPets   = parseInt(localStorage.getItem("pawzo_cel_pets")   ?? "0", 10);
-
-    const persistedStreak = new Set<number>(JSON.parse(localStorage.getItem("pawzo_earned_streak_ms") ?? "[]"));
-    setEarnedStreakSet(persistedStreak);
 
     const crossedStreak = getStreakMilestones(currentStreak).filter(m => prevStreak < m && currentStreak >= m);
     const crossedMem    = MEM_MILESTONES.filter(m => prevMem < m && currentMemCount >= m);
@@ -111,7 +104,6 @@ export default function ProfilePage() {
     if (crossedMem.length)    setJustEarnedMem(Math.max(...crossedMem));
     const crossedPets = [1,2,3,4,5].filter(m => prevPets < m && currentPets.length >= m);
     if (crossedPets.length) setJustEarnedPet(Math.max(...crossedPets));
-    // no localStorage writes here
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
@@ -161,11 +153,10 @@ export default function ProfilePage() {
   const filteredDocs = state.documents.filter(d => d.name.toLowerCase().includes(docSearch.toLowerCase()));
 
   // ── Streak milestones ──
-  // Use the highest ever-earned milestone so previously unlocked badges stay visible
-  // even after a streak reset (earnedStreakSet persists across resets in localStorage).
-  const maxEarnedMs = earnedStreakSet.size > 0 ? Math.max(...earnedStreakSet) : 0;
-  const STREAK_MILESTONES = getStreakMilestones(Math.max(currentStreak, maxEarnedMs));
-  const doneStreakCount = STREAK_MILESTONES.filter(m => currentStreak >= m || earnedStreakSet.has(m)).length;
+  // Use maxStreak from DB so badges are synced across all devices.
+  const dbMaxStreak = maxStreak();
+  const STREAK_MILESTONES = getStreakMilestones(Math.max(currentStreak, dbMaxStreak));
+  const doneStreakCount = STREAK_MILESTONES.filter(m => currentStreak >= m || dbMaxStreak >= m).length;
 
   // next unreached milestone (drives the "X / Y days to next" label)
   let nextStreakIdx = STREAK_MILESTONES.findIndex(m => currentStreak < m);
@@ -374,7 +365,7 @@ export default function ProfilePage() {
           <div className="no-scrollbar" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:4 }}>
             {STREAK_MILESTONES.map((m, i) => {
               const prev = i > 0 ? STREAK_MILESTONES[i-1] : 0;
-              const st = badgeState(currentStreak, m, prev, justEarnedStreak, earnedStreakSet);
+              const st = badgeState(currentStreak, m, prev, justEarnedStreak, dbMaxStreak);
               const meta = streakMeta(m);
               const hint = st === "next" ? `${m - currentStreak}d left` : undefined;
               return <Badge key={m} emoji={meta.emoji} name={meta.name} desc={meta.desc} state={st} hint={hint} />;

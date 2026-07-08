@@ -59,6 +59,7 @@ export type State = {
   activity: string[];
   streakCount: number;
   streakBroken: boolean;
+  maxStreak: number;
   pastAlerts: Alert[];
 };
 
@@ -67,7 +68,7 @@ const EMPTY: State = {
   pets: [], meals: [], mealLogs: [], vaccinations: [], weights: [], health: [],
   expenses: [], milestones: [], memories: [], events: [], environment: [], vet: null, documents: [],
   settings: { theme: "light", push: true, email: false, sound: true, units: "metric", currency: "USD", language: "English", timezone: "Asia/Kolkata" },
-  activity: [], streakCount: 0, streakBroken: false,
+  activity: [], streakCount: 0, streakBroken: false, maxStreak: 0,
   pastAlerts: [],
 };
 
@@ -170,7 +171,7 @@ async function loadAll(userId: string): Promise<Partial<State>> {
       userApi.getVet().then(toVet).catch(() => null as Vet),
       documentsApi.list().then((r) => r.map(toDocument)).catch(() => [] as Document[]),
       userApi.getSettings().then(toSettings).catch(() => EMPTY.settings),
-      userApi.recordActivity().catch(() => ({ dates: [] as string[], streak: 0, streak_broken: false })),
+      userApi.recordActivity().catch(() => ({ dates: [] as string[], streak: 0, streak_broken: false, max_streak: 0 })),
       userApi.getMe().catch(() => null),
       alertsApi.list().then((r) => r.map(toAlertRecord)).catch(() => [] as Alert[]),
     ]);
@@ -185,6 +186,7 @@ async function loadAll(userId: string): Promise<Partial<State>> {
     activity: activityRes.dates,
     streakCount: activityRes.streak,
     streakBroken: activityRes.streak_broken,
+    maxStreak: activityRes.max_streak ?? 0,
     selectedPetId: pets[0]?.id ?? null,
     pastAlerts,
   };
@@ -221,6 +223,7 @@ type Ctx = {
   recordActivity: () => void;
   streak:        () => number;
   streakBroken:  () => boolean;
+  maxStreak:     () => number;
 };
 
 const PawzoCtx = createContext<Ctx | null>(null);
@@ -582,6 +585,7 @@ export function PawzoProvider({ children }: { children: React.ReactNode }) {
 
     streak:       () => stateRef.current.streakCount,
     streakBroken: () => stateRef.current.streakBroken,
+    maxStreak:    () => stateRef.current.maxStreak,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [ready, state]);
 

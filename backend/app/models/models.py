@@ -227,14 +227,15 @@ class UserSettings(Base):
 
     id       = Column(String, primary_key=True, default=new_id)
     user_id  = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
-    theme    = Column(String, default="light")
-    push     = Column(Boolean, default=True)
-    email    = Column(Boolean, default=False)
-    sound    = Column(Boolean, default=True)
-    units    = Column(String, default="metric")
-    currency = Column(String, default="USD")
-    language = Column(String, default="English")
-    timezone = Column(String, default="Asia/Kolkata")
+    theme      = Column(String, default="light")
+    push       = Column(Boolean, default=True)
+    email      = Column(Boolean, default=False)
+    sound      = Column(Boolean, default=True)
+    units      = Column(String, default="metric")
+    currency   = Column(String, default="USD")
+    language   = Column(String, default="English")
+    timezone   = Column(String, default="Asia/Kolkata")
+    max_streak = Column(Integer, default=0)
 
     user = relationship("User", back_populates="settings")
 

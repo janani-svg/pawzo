@@ -167,6 +167,23 @@ async def _upsert_today(user_id: str, db: AsyncSession) -> None:
         await db.commit()
 
 
+async def _update_max_streak(user_id: str, streak: int, db: AsyncSession) -> int:
+    """Update max_streak in user_settings if current streak is higher. Returns the max."""
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    settings = result.scalar_one_or_none()
+    if settings is None:
+        settings = UserSettings(user_id=user_id, max_streak=streak)
+        db.add(settings)
+        await db.commit()
+        return streak
+    current_max = settings.max_streak or 0
+    if streak > current_max:
+        settings.max_streak = streak
+        await db.commit()
+        return streak
+    return current_max
+
+
 @router.get("/activity", response_model=ActivityOut)
 async def get_activity(
     current_user: User = Depends(get_current_user),
@@ -179,7 +196,8 @@ async def get_activity(
     )
     dates = sorted(row[0] for row in result.all())
     streak, broken = _compute_streak(dates)
-    return {"dates": dates, "streak": streak, "streak_broken": broken}
+    max_streak = await _update_max_streak(current_user.id, streak, db)
+    return {"dates": dates, "streak": streak, "streak_broken": broken, "max_streak": max_streak}
 
 
 @router.post("/activity", response_model=ActivityOut)
@@ -193,4 +211,5 @@ async def record_activity(
     )
     dates = sorted(row[0] for row in result.all())
     streak, broken = _compute_streak(dates)
-    return {"dates": dates, "streak": streak, "streak_broken": broken}
+    max_streak = await _update_max_streak(current_user.id, streak, db)
+    return {"dates": dates, "streak": streak, "streak_broken": broken, "max_streak": max_streak}

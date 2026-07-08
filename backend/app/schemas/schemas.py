@@ -511,6 +511,7 @@ class ActivityOut(BaseModel):
     dates: list[str]
     streak: int = 0
     streak_broken: bool = False
+    max_streak: int = 0
 
 
 # ── Weight Analysis ───────────────────────────────────────────────────────────
